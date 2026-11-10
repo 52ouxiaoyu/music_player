@@ -1,0 +1,17 @@
+{
+  "name": "耀丁音乐",
+  "short_name": "耀丁音乐",
+  "description": "车机英语听歌 · 逐句跟读",
+  "start_url": "./?sharecode=4RG3JT7QBE",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#07080a",
+  "theme_color": "#07080a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
