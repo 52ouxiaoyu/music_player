@@ -45,47 +45,51 @@
     --overlayBg:rgba(6,7,9,.99);
     --toastBg:rgba(18,23,30,.96);
     --toastTxt:#cfd8e5;
-    --hudGrad:linear-gradient(to top,rgba(7,8,10,.99) 0%,rgba(7,8,10,.96) 62%,rgba(7,8,10,0) 100%);
+    --hudGrad:linear-gradient(to top,rgba(7,8,10,1) 0%,rgba(7,8,10,1) 70%,rgba(7,8,10,.86) 86%,rgba(7,8,10,0) 100%);
     --floatC1:rgba(7,9,13,.80);
     --floatC2:rgba(7,9,13,.62);
     --floatTxt:rgba(238,244,251,.66);
     --playTxt:#04121f;
   }
 
-  /* 日间主题：暖白底 + 深字。纯白在强光下反而刺眼，所以用米白 */
+  /* 日间主题：干净白底 + 高对比深字（之前的米黄底 + 灰字会糊成一片"灰蒙蒙"） */
   html.light{
-    --bg:#f6f4ef;
-    --hud:#fbf9f5;
-    --hud2:#ffffff;
-    --line:#ded9d0;
-    --text:#12161b;
-    --dim:#8d949e;
-    --dim2:#5c646f;
-    --accent:#1f6fd0;
+    --bg:#FAFAF9;
+    --hud:#FFFFFF;
+    --hud2:#FFFFFF;
+    --line:#E7E7E3;
+    --text:#14171A;
+    --dim:#6F767F;
+    --dim2:#4A515A;
+    --accent:#0F6FE0;
 
-    --lyric:#8b929b;
-    --lyricZh:#a6acb4;
-    --lyricOn:#0d1116;
-    --lyricZhOn:#4f5761;
-    --title:#3e4653;
-    --sub:#7b828d;
-    --btnBg:rgba(255,255,255,.94);
-    --btnTxt:#2a313a;
-    --btnActive:#e8e3d9;
-    --btnNavBg:rgba(255,255,255,.82);
-    --btnNavTxt:#9aa1ab;
-    --grab:#d5cfc4;
-    --trackEmpty:#e3ded5;
-    --thumb:#ffffff;
-    --overlayBg:rgba(250,248,244,.99);
-    --toastBg:rgba(26,30,36,.94);
-    --toastTxt:#f4f7fa;
-    --hudGrad:linear-gradient(to top,rgba(246,244,239,.99) 0%,rgba(246,244,239,.95) 62%,rgba(246,244,239,0) 100%);
-    --floatC1:rgba(250,248,244,.88);
-    --floatC2:rgba(250,248,244,.66);
-    --floatTxt:rgba(30,36,44,.52);
-    --playTxt:#ffffff;
+    --lyric:#6E757E;
+    --lyricZh:#9BA1A9;
+    --lyricOn:#0A0C0F;
+    --lyricZhOn:#4B535C;
+    --title:#2F353D;
+    --sub:#6F767F;
+    --btnBg:#FFFFFF;
+    --btnTxt:#2A3138;
+    --btnActive:#EDEDE9;
+    --btnNavBg:rgba(255,255,255,.88);
+    --btnNavTxt:#8E959E;
+    --grab:#DCDCD7;
+    --trackEmpty:#E4E4DF;
+    --thumb:#FFFFFF;
+    --overlayBg:rgba(252,252,251,.99);
+    --toastBg:rgba(22,25,30,.94);
+    --toastTxt:#F5F7FA;
+    --hudGrad:linear-gradient(to top,#FAFAF9 0%,#FAFAF9 70%,rgba(250,250,249,.86) 86%,rgba(250,250,249,0) 100%);
+    --floatC1:rgba(250,250,249,.92);
+    --floatC2:rgba(250,250,249,.70);
+    --floatTxt:rgba(24,29,36,.50);
+    --playTxt:#FFFFFF;
   }
+  /* 日间下给控件一点极浅投影，避免白色按钮贴在白底上"发灰" */
+  html.light .ibtn{box-shadow:0 1px 2px rgba(17,21,26,.07);}
+  html.light .btn,html.light .chip{box-shadow:0 1px 2px rgba(17,21,26,.05);}
+  html.light #playFloat{box-shadow:none;}
   @media (min-width:700px){ :root{ --ly:34px; } }
   @media (min-width:1000px){ :root{ --ly:42px; } }
   @media (min-width:1400px){ :root{ --ly:50px; } }
@@ -473,8 +477,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.27.0';
-  var BUILD_AT = '2026-11-11 07:40';
+  var APP_VER = '1.28.0';
+  var BUILD_AT = '2026-11-11 08:10';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1396,9 +1400,11 @@
     var active = els.inner.querySelector('.line.active');
 
     if(!active){
-      var hh = els.inner.offsetHeight;
-      var y = (hh > areaH) ? (topSafe - vh/2) : (areaCenter - vh/2 - hh/2);
-      els.inner.style.transform = 'translateY(' + y + 'px)';
+      // 未播放时让「第一句」就停在将来高亮句所在的位置，
+      // 这样一按播放不会整块往下跳（之前的跳变就是顶对齐 → 居中切换造成的）
+      var first = els.inner.firstElementChild;
+      var fh = first ? first.offsetHeight : 0;
+      els.inner.style.transform = 'translateY(' + (areaCenter - vh/2 - fh/2) + 'px)';
       return;
     }
     var shift = areaCenter - vh/2;
