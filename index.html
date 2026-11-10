@@ -154,7 +154,7 @@
   #abInfo{font-size:13px;color:var(--dim);}
 
   /* ---------- 歌单 / 说明 ---------- */
-  #overlay{position:fixed;inset:0;z-index:60;background:rgba(4,5,7,.94);display:none;
+  #overlay{position:fixed;inset:0;z-index:60;background:rgba(6,7,9,.99);display:none;
     flex-direction:column;padding:20px;}
   #overlay.open{display:flex;}
   #overlay .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;}
@@ -168,6 +168,11 @@
   .li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .li .nmzh{font-size:12px;color:#5c6675;margin-top:2px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .li .del{flex:0 0 auto;width:44px;height:44px;padding:0;border-radius:10px;
+    border:1px solid var(--line);background:transparent;color:#5c6675;
+    font-size:20px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;}
+  .li .del:active{background:#2a1414;border-color:#5a2a2a;color:#e07171;}
   .li .tag{font-size:12px;color:#c99a4b;}
 
   #help .box{max-width:640px;margin:0 auto;overflow-y:auto;}
@@ -303,8 +308,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.15.0';
-  var BUILD_AT = '2026-11-10 19:00';
+  var APP_VER = '1.16.0';
+  var BUILD_AT = '2026-11-10 19:15';
 
   var $ = function(id){ return document.getElementById(id); };
   var audio = $('audio');
@@ -482,6 +487,18 @@
     });
   }
 
+  function dbDel(name, cb){
+    db(function(d){
+      if(!d) return cb(false);
+      try{
+        var tx = d.transaction('tracks','readwrite');
+        tx.objectStore('tracks').delete(name);
+        tx.oncomplete = function(){ cb(true); };
+        tx.onerror = function(){ cb(false); };
+      }catch(e){ cb(false); }
+    });
+  }
+
   function dbClear(cb){
     db(function(d){
       if(!d) return cb(false);
@@ -633,11 +650,53 @@
       d.className = 'li' + (i === S.cur ? ' on' : '');
       d.innerHTML = '<span class="no">'+(i+1)+'</span>' +
                     '<div class="nmwrap"><div class="nm"></div><div class="nmzh"></div></div>' +
-                    (tr.lines.length ? '' : '<span class="tag">无歌词</span>');
+                    (tr.lines.length ? '' : '<span class="tag">无歌词</span>') +
+                    '<button class="del" aria-label="移出歌单" title="移出歌单">×</button>';
       d.querySelector('.nm').textContent = tr.title || tr.name;
       d.querySelector('.nmzh').textContent = tr.titleZh || '';
       d.addEventListener('click', function(){ closeOverlay(); playTrack(i); });
+      d.querySelector('.del').addEventListener('click', function(e){
+        e.stopPropagation();
+        removeTrack(i);
+      });
       els.listItems.appendChild(d);
+    });
+  }
+
+  /* ---------- 把某首歌移出歌单（同时删本机缓存） ---------- */
+  function removeTrack(i){
+    var tr = S.tracks[i];
+    if(!tr) return;
+    var nm = tr.title || tr.name;
+    if(!window.confirm('把「' + nm + '」移出歌单？\n\n只从本机缓存删除，以后重新选歌可以加回来。')) return;
+
+    var wasCur = (i === S.cur);
+    S.tracks.splice(i, 1);
+    dbDel(tr.name, refreshStoreText);
+
+    if(!S.tracks.length){
+      S.cur = -1; S.lines = []; S.lineIdx = -1;
+      try{ audio.pause(); }catch(e){}
+      audio.removeAttribute('src');
+      try{ audio.load(); }catch(e){}
+      els.inner.innerHTML = '';
+      els.empty.classList.remove('hidden');
+      showTitle(null);
+    }else if(wasCur){
+      S.cur = Math.min(i, S.tracks.length - 1);
+      playTrack(S.cur, { autoplay: false });
+    }else if(i < S.cur){
+      S.cur--;
+    }
+    renderList();
+    toast('已移出歌单：' + nm);
+  }
+
+  function refreshStoreText(){
+    dbAll(function(list){
+      var bytes = 0;
+      (list || []).forEach(function(r){ bytes += r.size || 0; });
+      updateStoreText((list || []).length, bytes);
     });
   }
 
@@ -682,7 +741,13 @@
             track.lines = parseLRC(txt);
             applyTrackMeta(track, txt);
             cacheList.push({ name: track.name, file: track.file, lrcText: txt });
-            if(track === S.tracks[S.cur]){ bindLines(); showTitle(track); }
+            // 歌词是异步读的，若它正是当前曲目，必须把 S.lines 换成新数组再重绘
+            if(track === S.tracks[S.cur]){
+              S.lines = track.lines;
+              S.lineIdx = -1;
+              bindLines();
+              showTitle(track);
+            }
             renderList();
             maybeCache();
           });
