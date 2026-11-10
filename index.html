@@ -185,6 +185,13 @@
 
   /* APK 模式下由原生读目录，不需要浏览器缓存与「清空缓存」 */
   body.native #btnClear{display:none;}
+  body:not(.native) #btnRescan{display:none;}
+
+  /* APK 模式下的脚本错误提示，出问题时能把原因显示在屏幕上 */
+  #errbar{position:fixed;left:0;right:0;bottom:0;z-index:999;display:none;
+    background:#3a1214;color:#ffb4b4;border-top:1px solid #6b2426;
+    font-size:13px;line-height:1.5;padding:10px 14px;max-height:38%;overflow-y:auto;
+    font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;}
 
   #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:80;
     background:rgba(18,23,30,.96);border:1px solid var(--line);border-radius:12px;
@@ -280,6 +287,7 @@
     <div class="row">
       <span class="lbl">操作</span>
       <button class="chip" id="btnPick">选歌</button>
+      <button class="chip" id="btnRescan">重新扫描</button>
       <button class="chip" id="btnList">歌单</button>
       <button class="chip" id="btnFull">全屏</button>
       <button class="chip" id="btnHelp">说明</button>
@@ -320,8 +328,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.20.0';
-  var BUILD_AT = '2026-11-10 20:10';
+  var APP_VER = '1.20.1';
+  var BUILD_AT = '2026-11-10 20:28';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -722,18 +730,25 @@
   /* ---------- APK 模式：直接读车机本地目录 ---------- */
   function loadNative(){
     document.body.className = (document.body.className + ' native').trim();
-    var arr = [];
-    try{ arr = JSON.parse(NATIVE.listTracks() || '[]') || []; }catch(e){ arr = []; }
+
+    var arr = [], raw = '';
+    try{ raw = NATIVE.listTracks() || '[]'; }catch(e){ raw = '[]'; }
+    try{ arr = JSON.parse(raw) || []; }catch(e){ arr = []; }
+
+    var rootTxt = '';
+    try{ rootTxt = NATIVE.rootPath() || ''; }catch(e){}
 
     arr.sort(function(a,b){ return String(a.name).localeCompare(String(b.name), 'en'); });
 
     S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
+    var withLrc = 0;
     arr.forEach(function(it){
       var tr = { name: it.name, url: 'file://' + it.path, lines: [], native: true };
       var txt = '';
       if(it.lrcPath){
         try{ txt = NATIVE.readText(it.lrcPath) || ''; }catch(e){ txt = ''; }
         tr.lines = parseLRC(txt);
+        if(tr.lines.length) withLrc++;
       }
       applyTrackMeta(tr, txt);
       S.tracks.push(tr);
@@ -741,18 +756,29 @@
 
     renderList();
 
+    // 把诊断信息写进「说明」面板，方便出问题时一眼看到
+    try{
+      var si = $('storeInfo');
+      if(si) si.textContent = '目录 ' + (rootTxt || '未知') +
+        ' · 找到 ' + S.tracks.length + ' 首，其中 ' + withLrc + ' 首有歌词' +
+        (S.tracks.length ? ' · 首曲 ' + S.tracks[0].name : '');
+    }catch(e){}
+
     if(!S.tracks.length){
       els.inner.innerHTML = '';
       els.empty.classList.remove('hidden');
       var tip = document.querySelector('#empty .tip');
-      if(tip) tip.textContent = '没找到歌曲。把 MP3 和同名 LRC 放进车机的 Music 文件夹，或点下面选择文件夹。';
+      if(tip) tip.textContent = '没找到歌曲（扫描目录：' + (rootTxt || '未知') + '）。把 MP3 和同名 LRC 放进该目录，或点下面换一个文件夹。';
       var b = $('btnPickEmpty');
       if(b) b.textContent = '选择文件夹';
       showTitle(null);
+      toast('没找到歌曲，扫描的是 ' + (rootTxt || '未知目录'));
       return;
     }
 
     els.empty.classList.add('hidden');
+    toast('找到 ' + S.tracks.length + ' 首，' + withLrc + ' 首有歌词');
+
     var cfg = load(), idx = 0;
     for(var i=0;i<S.tracks.length;i++){
       if(S.tracks[i].name === cfg.lastTrack){ idx = i; break; }
@@ -1263,7 +1289,15 @@
   audio.addEventListener('error', function(){
     if(!audio.getAttribute('src')) return;
     var nm = (S.cur >= 0 && S.tracks[S.cur]) ? (S.tracks[S.cur].title || S.tracks[S.cur].name) : '';
+    var src = audio.getAttribute('src') || '';
     toast('无法播放' + (nm ? '：' + nm : '') + '，格式可能不支持');
+    if(NATIVE){
+      var d = $('errbar');
+      if(!d){ d = document.createElement('div'); d.id = 'errbar'; document.body.appendChild(d); }
+      d.style.display = 'block';
+      d.textContent += '音频加载失败：' + nm + '\n地址：' + src + '\n错误码：' +
+        (audio.error ? audio.error.code : '未知') + '\n';
+    }
   });
   audio.addEventListener('ended', function(){
     if(audio.loop) return;
@@ -1335,6 +1369,23 @@
     $('fileInput').click();
   }
   $('btnPick').addEventListener('click', function(){ openSheet(false); pick(); });
+  $('btnRescan').addEventListener('click', function(){ openSheet(false); loadNative(); });
+
+  // APK 模式下把脚本错误直接显示出来，避免"卡住但没有任何提示"
+  window.onerror = function(msg, src, line){
+    try{
+      if(!NATIVE) return false;
+      var d = $('errbar');
+      if(!d){
+        d = document.createElement('div');
+        d.id = 'errbar';
+        document.body.appendChild(d);
+      }
+      d.style.display = 'block';
+      d.textContent += '脚本错误：' + msg + '（第 ' + line + ' 行）\n';
+    }catch(e){}
+    return false;
+  };
   $('btnPickEmpty').addEventListener('click', pick);
   $('fileInput').addEventListener('change', function(e){ addFiles(e.target.files); });
 
