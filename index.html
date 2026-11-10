@@ -439,7 +439,7 @@
     <div class="box">
       <ol>
         <li>把英文歌 <code>.mp3</code> 和同名歌词 <code>.lrc</code> 放进同一个文件夹（U 盘或车机内部存储都行）。</li>
-        <li>网页版点「选歌」，把 mp3 和 lrc 一起选中；装了 APK 则点「扫描」读取上次的目录，不想看这个目录就点「换文件夹」。</li>
+        <li>网页版点「选歌」两者一起选中；APK 第一次点「扫描」，之后每次打开直接恢复歌单，不用再扫。</li>
         <li>点歌词任意一行可跳到该句；「单句循环」反复磨一句；「A-B」框住任意片段反复听。</li>
         <li>速度 0.6–1.3 变速不变调，听不懂就降到 0.75。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
@@ -473,8 +473,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.26.0';
-  var BUILD_AT = '2026-11-11 06:20';
+  var APP_VER = '1.27.0';
+  var BUILD_AT = '2026-11-11 07:40';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -832,7 +832,7 @@
       d.className = 'li' + (i === S.cur ? ' on' : '');
       d.innerHTML = '<span class="no">'+(i+1)+'</span>' +
                     '<div class="nmwrap"><div class="nm"></div><div class="nmzh"></div></div>' +
-                    (tr.lines.length ? '' : '<span class="tag">无歌词</span>') +
+                    ((tr.lines && tr.lines.length) || tr.lrcPath ? '' : '<span class="tag">无歌词</span>') +
                     '<button class="del" aria-label="移出歌单" title="移出歌单">×</button>';
       d.querySelector('.nm').textContent = tr.title || tr.name;
       d.querySelector('.nmzh').textContent = tr.titleZh || '';
@@ -952,7 +952,8 @@
     trackHist = [];
     var withLrc = 0;
     arr.forEach(function(it){
-      var tr = { name: it.name, url: 'file://' + it.path, lines: [], native: true };
+      var tr = { name: it.name, url: 'file://' + it.path, lines: [], native: true,
+                 lrcPath: it.lrcPath || '', size: it.size || 0 };
       var txt = '';
       if(it.lrcPath){
         try{ txt = NATIVE.readText(it.lrcPath) || ''; }catch(e){ txt = ''; }
@@ -977,7 +978,7 @@
       els.inner.innerHTML = '';
       els.empty.classList.remove('hidden');
       var tip = document.querySelector('#empty .tip');
-      if(tip) tip.textContent = '没找到歌曲（扫描目录：' + (rootTxt || '未知') + '）。把 MP3 和同名 LRC 放进该目录，或点下面换一个文件夹。';
+      if(tip) tip.textContent = '在「' + (rootTxt || '未知目录') + '」里没找到音频文件。点「换文件夹」选一个真正放歌的目录。';
       var b = $('btnPickEmpty');
       if(b) b.textContent = '选择文件夹';
       showTitle(null);
@@ -986,6 +987,7 @@
     }
 
     els.empty.classList.add('hidden');
+    saveLib();
     var msg = '找到 ' + S.tracks.length + ' 首，' + withLrc + ' 首有歌词';
     if(dirOrder.length > 1) msg += '（分布在 ' + dirOrder.length + ' 个目录）';
     toast(msg);
@@ -1027,6 +1029,70 @@
     if(!el) return;
     if(!NATIVE || !NATIVE.keyStats){ el.style.display = 'none'; return; }
     try{ el.textContent = NATIVE.keyStats(); }catch(e){ el.textContent = ''; }
+  }
+
+  /* 扫描是同步阻塞的（JS 直接调 Java 读目录），先让按钮变成「扫描中」再执行，
+     否则用户会以为没点上 */
+  function runScan(){
+    var b = $('btnScanEmpty');
+    if(b){ b.textContent = '扫描中…'; b.disabled = true; }
+    setTimeout(function(){
+      try{ loadNative(); }catch(e){}
+      if(b){ b.textContent = '扫描'; b.disabled = false; }
+    }, 80);
+  }
+
+  /* ---------- 曲库缓存：只扫一次，之后直接恢复 ---------- */
+  function saveLib(){
+    try{
+      var arr = S.tracks.map(function(t){
+        return { n:t.name, p:t.native ? (t.url || '').replace(/^file:\/\//,'') : '',
+                 l:t.lrcPath || '', s:t.size || 0 };
+      });
+      if(NATIVE && NATIVE.saveLib){
+        NATIVE.saveLib(JSON.stringify(arr));   // APK：写应用私有目录，最稳
+      }else{
+        save({ lib: arr });
+      }
+    }catch(e){}
+  }
+
+  function restoreLib(){
+    var arr = [];
+    try{
+      if(NATIVE && NATIVE.loadLib){
+        var raw = NATIVE.loadLib() || '';
+        arr = raw ? (JSON.parse(raw) || []) : [];
+      }else{
+        arr = (load().lib) || [];
+      }
+    }catch(e){ arr = []; }
+    if(!arr.length) return false;
+
+    S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
+    trackHist = [];
+    var withLrc = 0;
+    arr.forEach(function(it){
+      var tr = { name: it.n, url: 'file://' + it.p, lines: [], native: true,
+                 lrcPath: it.l || '', size: it.s || 0 };
+      applyTrackMeta(tr, '');
+      if(it.l) withLrc++;
+      S.tracks.push(tr);
+    });
+    renderList();
+    els.empty.classList.add('hidden');
+
+    var cfg = load(), idx = 0;
+    for(var i=0;i<S.tracks.length;i++){
+      if(S.tracks[i].name === cfg.lastTrack){ idx = i; break; }
+    }
+    playTrack(idx, { autoplay: false });
+
+    var si = $('storeInfo');
+    if(si) si.textContent = '已记住 ' + S.tracks.length + ' 首，其中 ' + withLrc +
+      ' 首带歌词；想刷新列表点「重新扫描」';
+    toast('已恢复歌单 ' + S.tracks.length + ' 首');
+    return true;
   }
 
   /* ---------- 载入文件 ---------- */
@@ -1115,6 +1181,13 @@
     opts = opts || {};
     S.cur = i;
     var tr = S.tracks[i];
+    // 从缓存恢复的歌单没有预读歌词，播这首时再读，省掉启动时的一次批量读盘
+    if(NATIVE && tr.lrcPath && (!tr.lines || !tr.lines.length)){
+      try{
+        var txt = NATIVE.readText(tr.lrcPath) || '';
+        if(txt){ tr.lines = parseLRC(txt); applyTrackMeta(tr, txt); }
+      }catch(e){}
+    }
     audio.src = tr.url;
     showTitle(tr);
 
@@ -1713,8 +1786,8 @@
     $('fileInput').click();
   }
   $('btnPick').addEventListener('click', function(){ openSheet(false); pick(); });
-  $('btnRescan').addEventListener('click', function(){ openSheet(false); loadNative(); });
-  $('btnScanEmpty').addEventListener('click', function(){ loadNative(); });
+  $('btnRescan').addEventListener('click', function(){ openSheet(false); runScan(); });
+  $('btnScanEmpty').addEventListener('click', runScan);
   $('btnAutoScan').addEventListener('click', function(){
     S.autoScan = !S.autoScan;
     els.btnAutoScan.classList.toggle('on', S.autoScan);
@@ -1897,7 +1970,10 @@
     if(/[?&]demo=1/.test(location.search)){
       setTimeout(function(){ $('btnDemo').click(); }, 60);
     }else if(NATIVE){
-      setTimeout(function(){ S.autoScan ? loadNative() : showStart(); }, 60);
+      setTimeout(function(){
+        if(S.autoScan){ loadNative(); return; }
+        if(!restoreLib()) showStart();     // 扫过一次就再也不扫
+      }, 60);
     }else{
       setTimeout(restoreLibrary, 60);
     }
