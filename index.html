@@ -297,6 +297,11 @@
   body.native #btnClear{display:none;}
   body:not(.native) #btnRescan{display:none;}
 
+  /* 仅在对应模式下出现的入口 */
+  body:not(.native) #btnScanEmpty{display:none;}
+  body:not(.native) #btnAutoScan{display:none;}
+  body.native #btnDemo{display:none;}
+
   /* APK 模式下这些入口没有意义 */
   body.native #btnApk{display:none;}
   body.native #apkBox{display:none;}
@@ -332,7 +337,8 @@
     <div class="ver" id="verLine"></div>
     <p class="tip">U 盘里放好 MP3 和同名的 LRC 歌词，点下面选歌。</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-      <button class="btn primary" id="btnPickEmpty">选歌</button>
+      <button class="btn primary" id="btnScanEmpty">扫描</button>
+      <button class="btn" id="btnPickEmpty">选歌</button>
       <button class="btn" id="btnDemo">演示</button>
     </div>
   </div>
@@ -417,6 +423,7 @@
       <button class="chip" id="btnFull">全屏</button>
       <button class="chip" id="btnHelp">说明</button>
       <a class="chip" id="btnApk" href="apk/" target="_blank" rel="noopener">下载 APK</a>
+      <button class="chip" id="btnAutoScan">启动时自动扫描</button>
       <button class="chip" id="btnClear">清空缓存</button>
     </div>
   </div>
@@ -432,7 +439,7 @@
     <div class="box">
       <ol>
         <li>把英文歌 <code>.mp3</code> 和同名歌词 <code>.lrc</code> 放进同一个文件夹（U 盘或车机内部存储都行）。</li>
-        <li>网页版点「选歌」，把 mp3 和 lrc 一起选中；装了 APK 则自动列出目录里的歌，不用选。</li>
+        <li>网页版点「选歌」，把 mp3 和 lrc 一起选中；装了 APK 则点「扫描」读取上次的目录，不想看这个目录就点「换文件夹」。</li>
         <li>点歌词任意一行可跳到该句；「单句循环」反复磨一句；「A-B」框住任意片段反复听。</li>
         <li>速度 0.6–1.3 变速不变调，听不懂就降到 0.75。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
@@ -466,8 +473,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.24.0';
-  var BUILD_AT = '2026-11-10 23:10';
+  var APP_VER = '1.25.0';
+  var BUILD_AT = '2026-11-10 23:25';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -480,12 +487,13 @@
     seek:$('seek'), tCur:$('tCur'), tDur:$('tDur'),
     btnPlay:$('btnPlay'), btnPrev:$('btnPrev'), btnNext:$('btnNext'),
     btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'),
+    btnAutoScan:$('btnAutoScan'),
     abInfo:$('abInfo'), help:$('help'), ovTitle:$('ovTitle')
   };
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, showZh: true, lineLoop: false, shuffle: false, theme: 'dark',
+    speed: 1, showZh: true, lineLoop: false, shuffle: false, theme: 'dark', autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -879,10 +887,28 @@
     });
   }
 
+  /* ---------- APK 模式：开始页（默认不自动扫描） ---------- */
+  function showStart(){
+    els.empty.classList.remove('hidden');
+    els.inner.innerHTML = '';
+    var root = '';
+    try{ root = NATIVE.rootPath() || ''; }catch(e){}
+
+    var tip = document.querySelector('#empty .tip');
+    if(tip){
+      tip.textContent = root
+        ? '上次的目录：' + root + '。点「扫描」读取这个文件夹，或换一个。'
+        : '点「扫描」自动找车机里的音乐，或直接选一个文件夹。';
+    }
+    var b1 = $('btnScanEmpty'); if(b1) b1.textContent = '扫描';
+    var b2 = $('btnPickEmpty'); if(b2) b2.textContent = '换文件夹';
+    showTitle(null);
+    renderList();
+    syncFloat();
+  }
+
   /* ---------- APK 模式：直接读车机本地目录 ---------- */
   function loadNative(){
-    document.body.className = (document.body.className + ' native').trim();
-
     var arr = [], raw = '';
     try{ raw = NATIVE.listTracks() || '[]'; }catch(e){ raw = '[]'; }
     try{ arr = JSON.parse(raw) || []; }catch(e){ arr = []; }
@@ -1688,6 +1714,13 @@
   }
   $('btnPick').addEventListener('click', function(){ openSheet(false); pick(); });
   $('btnRescan').addEventListener('click', function(){ openSheet(false); loadNative(); });
+  $('btnScanEmpty').addEventListener('click', function(){ loadNative(); });
+  $('btnAutoScan').addEventListener('click', function(){
+    S.autoScan = !S.autoScan;
+    els.btnAutoScan.classList.toggle('on', S.autoScan);
+    save({ autoScan: S.autoScan });
+    toast(S.autoScan ? '以后打开会自动扫描' : '以后打开停在开始页，手动点扫描');
+  });
 
   // APK 模式下把脚本错误直接显示出来，避免"卡住但没有任何提示"
   window.onerror = function(msg, src, line){
@@ -1841,6 +1874,8 @@
     S.shuffle = !!cfg.shuffle;
     els.btnZh.classList.toggle('on', S.showZh);
     els.btnShuffle.classList.toggle('on', S.shuffle);
+    S.autoScan = !!cfg.autoScan;
+    if(els.btnAutoScan) els.btnAutoScan.classList.toggle('on', S.autoScan);
     var qTheme = (location.search.match(/[?&]theme=(dark|light|auto)/) || [])[1];
     applyTheme(qTheme || cfg.theme || 'dark');
     setInterval(function(){ if(S.theme === 'auto') applyTheme('auto'); }, 600000);
@@ -1857,10 +1892,12 @@
       if(navigator.storage && navigator.storage.persist) navigator.storage.persist();
     }catch(e){}
 
+    if(NATIVE) document.body.className = (document.body.className + ' native').trim();
+
     if(/[?&]demo=1/.test(location.search)){
       setTimeout(function(){ $('btnDemo').click(); }, 60);
     }else if(NATIVE){
-      setTimeout(loadNative, 60);
+      setTimeout(function(){ S.autoScan ? loadNative() : showStart(); }, 60);
     }else{
       setTimeout(restoreLibrary, 60);
     }
