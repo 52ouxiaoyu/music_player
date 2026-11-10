@@ -183,6 +183,9 @@
   #help ol{padding-left:20px;margin:6px 0 14px;}
   #help code{background:#141a21;padding:2px 6px;border-radius:4px;color:#e0b34d;font-size:13px;}
 
+  /* APK 模式下由原生读目录，不需要浏览器缓存与「清空缓存」 */
+  body.native #btnClear{display:none;}
+
   #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:80;
     background:rgba(18,23,30,.96);border:1px solid var(--line);border-radius:12px;
     padding:10px 18px;font-size:14px;color:#cfd8e5;display:none;
@@ -317,8 +320,11 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.19.0';
-  var BUILD_AT = '2026-11-10 19:46';
+  var APP_VER = '1.20.0';
+  var BUILD_AT = '2026-11-10 20:10';
+
+  // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
+  var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
 
   var $ = function(id){ return document.getElementById(id); };
   var audio = $('audio');
@@ -713,6 +719,49 @@
     });
   }
 
+  /* ---------- APK 模式：直接读车机本地目录 ---------- */
+  function loadNative(){
+    document.body.className = (document.body.className + ' native').trim();
+    var arr = [];
+    try{ arr = JSON.parse(NATIVE.listTracks() || '[]') || []; }catch(e){ arr = []; }
+
+    arr.sort(function(a,b){ return String(a.name).localeCompare(String(b.name), 'en'); });
+
+    S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
+    arr.forEach(function(it){
+      var tr = { name: it.name, url: 'file://' + it.path, lines: [], native: true };
+      var txt = '';
+      if(it.lrcPath){
+        try{ txt = NATIVE.readText(it.lrcPath) || ''; }catch(e){ txt = ''; }
+        tr.lines = parseLRC(txt);
+      }
+      applyTrackMeta(tr, txt);
+      S.tracks.push(tr);
+    });
+
+    renderList();
+
+    if(!S.tracks.length){
+      els.inner.innerHTML = '';
+      els.empty.classList.remove('hidden');
+      var tip = document.querySelector('#empty .tip');
+      if(tip) tip.textContent = '没找到歌曲。把 MP3 和同名 LRC 放进车机的 Music 文件夹，或点下面选择文件夹。';
+      var b = $('btnPickEmpty');
+      if(b) b.textContent = '选择文件夹';
+      showTitle(null);
+      return;
+    }
+
+    els.empty.classList.add('hidden');
+    var cfg = load(), idx = 0;
+    for(var i=0;i<S.tracks.length;i++){
+      if(S.tracks[i].name === cfg.lastTrack){ idx = i; break; }
+    }
+    playTrack(idx, { autoplay: false });
+  }
+
+  window.YD_onLibraryChanged = function(){ loadNative(); };
+
   /* ---------- 载入文件 ---------- */
   function addFiles(fileList){
     var files = Array.prototype.slice.call(fileList || []);
@@ -746,6 +795,7 @@
 
     function maybeCache(){
       if(--waiting > 0) return;
+      if(NATIVE){ updateStoreText(); return; }   // APK 里不重复存一份，直接读本地文件
       cacheList.sort(function(a,b){ return a.name.localeCompare(b.name, 'en'); });
       cacheTracks(cacheList, function(n, fail){
         if(fail) toast('缓存完成 ' + n + ' 首，' + fail + ' 首失败');
@@ -1279,7 +1329,11 @@
     S.ab.a = null; S.ab.b = null; updateAB();
   });
 
-  function pick(){ $('fileInput').value = ''; $('fileInput').click(); }
+  function pick(){
+    if(NATIVE){ try{ NATIVE.pickDir(); }catch(e){} return; }
+    $('fileInput').value = '';
+    $('fileInput').click();
+  }
   $('btnPick').addEventListener('click', function(){ openSheet(false); pick(); });
   $('btnPickEmpty').addEventListener('click', pick);
   $('fileInput').addEventListener('change', function(e){ addFiles(e.target.files); });
@@ -1420,6 +1474,8 @@
 
     if(/[?&]demo=1/.test(location.search)){
       setTimeout(function(){ $('btnDemo').click(); }, 60);
+    }else if(NATIVE){
+      setTimeout(loadNative, 60);
     }else{
       setTimeout(restoreLibrary, 60);
     }
