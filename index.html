@@ -385,6 +385,7 @@
 
       <p id="storeInfo" style="color:#4a5462;font-size:13px;"></p>
       <p id="verInfo" style="color:#3d4552;font-size:12px;"></p>
+      <p id="keyInfo" style="color:#3d4552;font-size:12px;"></p>
     </div>
   </div>
 </div>
@@ -399,8 +400,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.21.5';
-  var BUILD_AT = '2026-11-10 22:10';
+  var APP_VER = '1.22.0';
+  var BUILD_AT = '2026-11-10 22:25';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -892,6 +893,36 @@
 
   window.YD_onLibraryChanged = function(){ loadNative(); };
 
+  /* ---------- 方向盘 / 中控媒体键 ---------- */
+  window.YD_media = function(cmd){
+    try{
+      if(cmd === 'play'){ safePlay(); }
+      else if(cmd === 'pause'){ audio.pause(); }
+      else if(cmd === 'toggle'){ if(audio.paused){ safePlay(); } else { audio.pause(); } }
+      else if(cmd === 'next'){ stepTrack(1); }
+      else if(cmd === 'prev'){ stepTrack(-1); }
+      wake();
+    }catch(e){}
+  };
+
+  // 把播放状态与曲名同步给原生，车机媒体面板才显示对的信息
+  function reportNative(){
+    if(!NATIVE || !NATIVE.setPlayState) return;
+    var tr = (S.cur >= 0) ? S.tracks[S.cur] : null;
+    try{
+      NATIVE.setPlayState(!audio.paused,
+        tr ? (tr.title || tr.name) : '',
+        tr ? (tr.titleZh || tr.artist || '') : '');
+    }catch(e){}
+  }
+
+  function updateKeyInfo(){
+    var el = $('keyInfo');
+    if(!el) return;
+    if(!NATIVE || !NATIVE.keyStats){ el.style.display = 'none'; return; }
+    try{ el.textContent = NATIVE.keyStats(); }catch(e){ el.textContent = ''; }
+  }
+
   /* ---------- 载入文件 ---------- */
   function addFiles(fileList){
     var files = Array.prototype.slice.call(fileList || []);
@@ -1248,6 +1279,7 @@
     els.btnPlay.setAttribute('aria-label', playing ? '暂停' : '播放');
     els.btnPlay.setAttribute('title', playing ? '暂停' : '播放');
     syncFloat();
+    reportNative();
   }
 
   // 暂停时在屏幕正中间显示大播放键，播起来自动淡出
@@ -1519,7 +1551,7 @@
   $('fileInput').addEventListener('change', function(e){ addFiles(e.target.files); });
 
   $('btnList').addEventListener('click', function(){ openSheet(false); openOverlay('list'); });
-  $('btnHelp').addEventListener('click', function(){ openSheet(false); openOverlay('help'); });
+  $('btnHelp').addEventListener('click', function(){ openSheet(false); openOverlay('help'); updateKeyInfo(); });
 
   $('btnClear').addEventListener('click', function(){
     if(!window.confirm('清空本机缓存的歌曲？清空后需要重新选歌。')) return;
