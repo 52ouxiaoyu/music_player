@@ -334,6 +334,7 @@
       <span class="lbl">模式</span>
       <button class="chip" id="btnLineLoop">单句循环</button>
       <button class="chip" id="btnAllLoop">单曲循环</button>
+      <button class="chip" id="btnShuffle">随机播放</button>
       <button class="chip on" id="btnZh">显示译文</button>
     </div>
     <div class="row">
@@ -400,8 +401,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.22.1';
-  var BUILD_AT = '2026-11-10 22:35';
+  var APP_VER = '1.23.0';
+  var BUILD_AT = '2026-11-10 22:50';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -413,13 +414,13 @@
     hud:$('hud'), sheet:$('sheet'), overlay:$('overlay'), listItems:$('listItems'),
     seek:$('seek'), tCur:$('tCur'), tDur:$('tDur'),
     btnPlay:$('btnPlay'), btnPrev:$('btnPrev'), btnNext:$('btnNext'),
-    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'),
+    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'),
     abInfo:$('abInfo'), help:$('help'), ovTitle:$('ovTitle')
   };
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, showZh: true, lineLoop: false,
+    speed: 1, showZh: true, lineLoop: false, shuffle: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -857,6 +858,7 @@
     }).join('；');
 
     S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
+    trackHist = [];
     var withLrc = 0;
     arr.forEach(function(it){
       var tr = { name: it.name, url: 'file://' + it.path, lines: [], native: true };
@@ -1324,11 +1326,38 @@
   }
 
   /* 切歌：保持当前播放/暂停状态，且从头开始，不恢复上次进度 */
+  var trackHist = [];   // 随机模式下播放过的曲目，供「上一首」回退
+
+  function pickNext(dir){
+    var n = S.tracks.length;
+    if(!n) return -1;
+
+    if(!S.shuffle){
+      var i = (S.cur < 0) ? 0 : S.cur + dir;
+      if(i < 0) i = n - 1;
+      if(i >= n) i = 0;
+      return i;
+    }
+
+    // 随机模式：上一首优先按历史回退，别随机到原地
+    if(dir < 0 && trackHist.length){
+      var h = trackHist.pop();
+      if(h >= 0 && h < n && h !== S.cur) return h;
+    }
+    if(n === 1) return 0;
+    var idx = S.cur, guard = 0;
+    while(idx === S.cur && guard++ < 60){
+      idx = Math.floor(Math.random() * n);
+    }
+    if(idx === S.cur) idx = (S.cur + 1) % n;
+    if(dir > 0 && S.cur >= 0) trackHist.push(S.cur);
+    return idx;
+  }
+
   function stepTrack(dir){
     if(!S.tracks.length) return;
-    var i = (S.cur < 0) ? 0 : S.cur + dir;
-    if(i < 0) i = S.tracks.length - 1;
-    if(i >= S.tracks.length) i = 0;
+    var i = pickNext(dir);
+    if(i < 0) return;
     var wasPlaying = !audio.paused;
     playTrack(i, { autoplay: wasPlaying, fromStart: true });
     var tr = S.tracks[i];
@@ -1474,8 +1503,10 @@
     }
   });
   audio.addEventListener('ended', function(){
-    if(audio.loop) return;
-    if(S.cur < S.tracks.length - 1) playTrack(S.cur + 1);
+    if(audio.loop) return;                 // 单曲循环由 audio.loop 自己处理
+    if(!S.tracks.length) return;
+    var i = pickNext(1);
+    if(i >= 0) playTrack(i);
   });
   audio.addEventListener('loadedmetadata', function(){ els.tDur.textContent = fmt(audio.duration); });
   audio.addEventListener('timeupdate', function(){
@@ -1522,6 +1553,23 @@
   els.btnAllLoop.addEventListener('click', function(){
     audio.loop = !audio.loop;
     els.btnAllLoop.classList.toggle('on', audio.loop);
+    if(audio.loop && S.shuffle){          // 两个模式互斥，避免语义打架
+      S.shuffle = false;
+      els.btnShuffle.classList.remove('on');
+      save({ shuffle: false });
+    }
+  });
+
+  els.btnShuffle.addEventListener('click', function(){
+    S.shuffle = !S.shuffle;
+    if(S.shuffle){
+      audio.loop = false;
+      els.btnAllLoop.classList.remove('on');
+      trackHist = [];
+    }
+    els.btnShuffle.classList.toggle('on', S.shuffle);
+    save({ shuffle: S.shuffle });
+    toast(S.shuffle ? '随机播放已开启' : '随机播放已关闭');
   });
   $('btnA').addEventListener('click', function(){
     S.ab.a = audio.currentTime;
@@ -1694,7 +1742,9 @@
 
     S.speed = typeof cfg.speed === 'number' ? cfg.speed : 1;
     S.showZh = cfg.showZh !== false;
+    S.shuffle = !!cfg.shuffle;
     els.btnZh.classList.toggle('on', S.showZh);
+    els.btnShuffle.classList.toggle('on', S.shuffle);
     setSpeed(S.speed);
     updateAB();
     renderList();
