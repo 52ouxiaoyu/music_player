@@ -41,10 +41,12 @@
     .line .zh{ font-size:.72em; }
     .hud-top{ padding:12px 14px; }
     .hud-bottom{ padding:20px 14px 22px; gap:12px; }
-    .transport{ gap:22px; }
-    .ibtn{ width:54px; height:54px; }
-    .ibtn.play{ width:68px; height:68px; }
+    .transport{ gap:12px; }
+    .ibtn{ width:50px; height:50px; }
+    .ibtn.play{ width:64px; height:64px; }
     .ibtn.play svg{ width:28px; height:28px; }
+    .ibtn.nav{ width:44px; height:44px; }
+    .ibtn.nav svg{ width:19px; height:19px; }
     .t{ min-width:34px; font-size:11px; }
     #sheet{ padding:8px 16px 22px; }
     .chip{ height:44px; padding:0 14px; font-size:15px; }
@@ -122,7 +124,7 @@
   #seek::-moz-range-track{height:4px;border-radius:2px;background:var(--grad);}
   #seek::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:#fff;}
 
-  .transport{display:flex;align-items:center;justify-content:center;gap:28px;padding:2px 0 4px;}
+  .transport{display:flex;align-items:center;justify-content:center;gap:22px;padding:2px 0 4px;}
   .ibtn{width:58px;height:58px;padding:0;border-radius:50%;border:1px solid var(--line);
     background:rgba(26,31,39,.9);color:#cfd8e5;cursor:pointer;
     display:flex;align-items:center;justify-content:center;}
@@ -131,6 +133,10 @@
   .ibtn.play{width:74px;height:74px;background:var(--accent);border-color:var(--accent);color:#04121f;}
   .ibtn.play svg{width:32px;height:32px;}
   .ibtn.play:active{background:#3189d6;}
+  /* 切歌按钮：比切句小一圈、淡一档，避免和「上一句」混淆 */
+  .ibtn.nav{width:50px;height:50px;color:#7d8899;background:rgba(20,24,30,.85);}
+  .ibtn.nav svg{width:22px;height:22px;}
+  .ibtn.nav:active{background:#242b35;color:#cfd8e5;}
 
   /* ---------- 抽屉：所有次要功能 ---------- */
   #sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--hud);
@@ -224,6 +230,9 @@
       <span class="t" id="tDur">00:00</span>
     </div>
     <div class="transport">
+      <button class="ibtn nav" id="btnPrevTrack" aria-label="上一首" title="上一首">
+        <svg viewBox="0 0 24 24"><path d="M11 6v12l-7-6zM20 6v12l-7-6z"/></svg>
+      </button>
       <button class="ibtn" id="btnPrev" aria-label="上一句" title="上一句">
         <svg viewBox="0 0 24 24"><path d="M7 6h2.2v12H7zM19 6l-9.2 6 9.2 6z"/></svg>
       </button>
@@ -232,6 +241,9 @@
       </button>
       <button class="ibtn" id="btnNext" aria-label="下一句" title="下一句">
         <svg viewBox="0 0 24 24"><path d="M14.8 6H17v12h-2.2zM5 6l9.2 6L5 18z"/></svg>
+      </button>
+      <button class="ibtn nav" id="btnNextTrack" aria-label="下一首" title="下一首">
+        <svg viewBox="0 0 24 24"><path d="M13 6v12l7-6zM4 6v12l7-6z"/></svg>
       </button>
     </div>
   </div>
@@ -305,8 +317,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.18.0';
-  var BUILD_AT = '2026-11-10 19:28';
+  var APP_VER = '1.19.0';
+  var BUILD_AT = '2026-11-10 19:46';
 
   var $ = function(id){ return document.getElementById(id); };
   var audio = $('audio');
@@ -799,7 +811,8 @@
     if(opts.autoplay !== false) safePlay();
     showHud();
 
-    var pos = (opts.pos != null) ? opts.pos : load()['pos.' + tr.name];
+    var pos = opts.fromStart ? 0 :
+              ((opts.pos != null) ? opts.pos : load()['pos.' + tr.name]);
     if(typeof pos === 'number' && pos > 2){
       var go = function(){
         if(Math.abs(pos - audio.currentTime) < 1) audio.currentTime = pos;
@@ -1075,6 +1088,18 @@
     if(audio.paused) safePlay();
   }
 
+  /* 切歌：保持当前播放/暂停状态，且从头开始，不恢复上次进度 */
+  function stepTrack(dir){
+    if(!S.tracks.length) return;
+    var i = (S.cur < 0) ? 0 : S.cur + dir;
+    if(i < 0) i = S.tracks.length - 1;
+    if(i >= S.tracks.length) i = 0;
+    var wasPlaying = !audio.paused;
+    playTrack(i, { autoplay: wasPlaying, fromStart: true });
+    var tr = S.tracks[i];
+    toast((dir > 0 ? '下一首：' : '上一首：') + (tr.title || tr.name));
+  }
+
   function setSpeed(v){
     S.speed = v;
     audio.playbackRate = v;
@@ -1158,6 +1183,8 @@
   els.btnPlay.addEventListener('click', togglePlay);
   els.btnPrev.addEventListener('click', function(){ step(-1); });
   els.btnNext.addEventListener('click', function(){ step(1); });
+  $('btnPrevTrack').addEventListener('click', function(){ stepTrack(-1); });
+  $('btnNextTrack').addEventListener('click', function(){ stepTrack(1); });
   $('btnMore').addEventListener('click', function(){
     openSheet(!els.sheet.classList.contains('open'));
   });
