@@ -104,6 +104,22 @@
   .line.active .zh{color:#7f8c9e;font-weight:400;}
   .hide-zh .zh{display:none;}
 
+  /* 暂停时屏幕正中的大播放键：半透明，点一下就播，播起来自动淡出 */
+  #playFloat{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:150px;height:150px;padding:0;border-radius:50%;z-index:26;border:none;
+    background:radial-gradient(circle at 50% 50%,
+      rgba(7,9,13,.80) 0%, rgba(7,9,13,.62) 42%, rgba(7,9,13,0) 72%);
+    color:rgba(238,244,251,.66);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity .35s ease;}
+  #playFloat.show{opacity:1;pointer-events:auto;}
+  #playFloat:active{color:#fff;}
+  #playFloat svg{width:58px;height:58px;fill:currentColor;margin-left:8px;}
+  @media (max-width:640px){
+    #playFloat{width:118px;height:118px;}
+    #playFloat svg{width:40px;height:40px;margin-left:5px;}
+  }
+
   /* ---------- 常驻歌名（含中文译名） ---------- */
   #titlebar{position:fixed;left:0;top:0;z-index:25;pointer-events:none;
     padding:14px 20px 0;max-width:72%;}
@@ -268,6 +284,10 @@
   <div id="tZh"></div>
 </div>
 
+<button id="playFloat" aria-label="播放" title="播放">
+  <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+</button>
+
 <div id="hud" class="hide">
   <div class="hud-top">
     <button id="btnMore" aria-label="更多">···</button>
@@ -379,8 +399,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.21.3';
-  var BUILD_AT = '2026-11-10 21:40';
+  var APP_VER = '1.21.4';
+  var BUILD_AT = '2026-11-10 21:55';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -760,6 +780,7 @@
       els.inner.innerHTML = '';
       els.empty.classList.remove('hidden');
       showTitle(null);
+      syncFloat();
     }else if(wasCur){
       S.cur = Math.min(i, S.tracks.length - 1);
       playTrack(S.cur, { autoplay: false });
@@ -946,6 +967,7 @@
     save({ lastTrack: tr.name });
     if(opts.autoplay !== false) safePlay();
     showHud();
+    syncFloat();
 
     var pos = opts.fromStart ? 0 :
               ((opts.pos != null) ? opts.pos : load()['pos.' + tr.name]);
@@ -1202,6 +1224,15 @@
       : '<path d="M8 5v14l11-7z"/>';
     els.btnPlay.setAttribute('aria-label', playing ? '暂停' : '播放');
     els.btnPlay.setAttribute('title', playing ? '暂停' : '播放');
+    syncFloat();
+  }
+
+  // 暂停时在屏幕正中间显示大播放键，播起来自动淡出
+  function syncFloat(){
+    var f = $('playFloat');
+    if(!f) return;
+    var has = (S.cur >= 0) && S.tracks[S.cur];
+    f.className = (has && audio.paused) ? 'show' : '';
   }
 
   function setBtnLabel(el, text){
@@ -1484,6 +1515,7 @@
       showTitle(null);
       renderList();
       updateStoreText(0, 0);
+      syncFloat();
       openSheet(false);
       toast('已清空本机缓存');
     });
@@ -1498,6 +1530,8 @@
     renderList();
     playTrack(0);
   });
+
+  $('playFloat').addEventListener('click', function(){ safePlay(); wake(); });
 
   $('btnFull').addEventListener('click', function(){
     var d = document.documentElement;
