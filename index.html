@@ -52,13 +52,33 @@
     .chip{ height:44px; padding:0 14px; font-size:15px; }
   }
 
+  /* 老版 WebView（Chrome < 84）不支持 flex 的 gap，用外边距兜底 */
+  @supports not (gap: 1px){
+    .hud-bottom > * + *{margin-top:14px;}
+    .seekwrap > * + *{margin-left:10px;}
+    .transport > * + *{margin-left:22px;}
+    #sheet .body > * + *{margin-top:18px;}
+    .row > * + *{margin-left:8px;margin-top:8px;}
+    #listItems > * + *{margin-top:8px;}
+    .li > * + *{margin-left:12px;}
+    #empty > * + *{margin-top:22px;}
+    #deskhint > * + *{margin-left:12px;}
+    .chip > * + *{margin-left:6px;}
+  }
+  @media (max-width:640px){
+    @supports not (gap: 1px){
+      .transport > * + *{margin-left:12px;}
+      .hud-bottom > * + *{margin-top:12px;}
+    }
+  }
+
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",Roboto,"Helvetica Neue",Arial,sans-serif;
     overflow:hidden;overscroll-behavior:none;}
 
   /* ---------- 歌词（唯一常驻内容） ---------- */
-  #lyricView{position:fixed;inset:0;overflow:hidden;padding:0 0 110px;}
+  #lyricView{position:fixed;top:0;right:0;bottom:0;left:0;overflow:hidden;padding:0 0 110px;}
   #lyricInner{position:absolute;left:0;right:0;top:50%;padding:0 44px;
     transition:transform .42s cubic-bezier(.22,.61,.36,1);}
   #lyricInner.jump{transition:none;}
@@ -81,7 +101,7 @@
   @media (max-width:640px){
     #titlebar{padding:10px 16px 0;max-width:76%;}
   }
-  #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  #empty{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;gap:22px;text-align:center;padding:32px;}
   #empty.hidden{display:none;}
   #empty .name{font-size:15px;letter-spacing:.3em;color:var(--dim2);text-transform:uppercase;}
@@ -94,7 +114,7 @@
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:600;}
 
   /* ---------- HUD：顶部歌名 + 底部控制 ---------- */
-  #hud{position:fixed;inset:0;pointer-events:none;z-index:30;
+  #hud{position:fixed;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:30;
     transition:opacity .35s ease;}
   #hud > *{pointer-events:auto;}
   #hud.hide{opacity:0;pointer-events:none;}
@@ -157,7 +177,7 @@
   #abInfo{font-size:13px;color:var(--dim);}
 
   /* ---------- 歌单 / 说明 ---------- */
-  #overlay{position:fixed;inset:0;z-index:60;background:rgba(6,7,9,.99);display:none;
+  #overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;background:rgba(6,7,9,.99);display:none;
     flex-direction:column;padding:20px;}
   #overlay.open{display:flex;}
   #overlay .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;}
@@ -328,8 +348,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.20.1';
-  var BUILD_AT = '2026-11-10 20:28';
+  var APP_VER = '1.21.0';
+  var BUILD_AT = '2026-11-10 20:35';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -739,6 +759,15 @@
     try{ rootTxt = NATIVE.rootPath() || ''; }catch(e){}
 
     arr.sort(function(a,b){ return String(a.name).localeCompare(String(b.name), 'en'); });
+
+    // 同一首歌可能在两个目录各有一份，按文件名去重
+    var seen = {};
+    arr = arr.filter(function(it){
+      var k = String(it.name).toLowerCase();
+      if(seen[k]) return false;
+      seen[k] = 1;
+      return true;
+    });
 
     S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
     var withLrc = 0;
