@@ -399,8 +399,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.21.4';
-  var BUILD_AT = '2026-11-10 21:55';
+  var APP_VER = '1.21.5';
+  var BUILD_AT = '2026-11-10 22:10';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -812,14 +812,35 @@
 
     arr.sort(function(a,b){ return String(a.name).localeCompare(String(b.name), 'en'); });
 
-    // 同一首歌可能在两个目录各有一份，按文件名去重
-    var seen = {};
+    // 去重：同名且同大小才算重复（同名不同大小是两个不同的文件，不能吞掉）
+    var seen = {}, usedName = {};
     arr = arr.filter(function(it){
-      var k = String(it.name).toLowerCase();
-      if(seen[k]) return false;
-      seen[k] = 1;
+      var base = String(it.name);
+      var key = base.toLowerCase() + '|' + (it.size || 0);
+      if(seen[key]) return false;
+      seen[key] = 1;
+      var n = base, k = 1;
+      while(usedName[n.toLowerCase()]){
+        k++;
+        n = base + '（' + k + '）';
+      }
+      usedName[n.toLowerCase()] = 1;
+      it.name = n;
       return true;
     });
+
+    // 统计来源目录，方便看清"多出来的"是怎么来的
+    var byDir = {}, dirOrder = [];
+    arr.forEach(function(it){
+      var p = String(it.path || '');
+      var d = p.substring(0, p.lastIndexOf('/'));
+      if(!byDir[d]){ byDir[d] = 0; dirOrder.push(d); }
+      byDir[d]++;
+    });
+    dirOrder.sort(function(a,b){ return byDir[b] - byDir[a]; });
+    var dirTxt = dirOrder.slice(0, 3).map(function(d){
+      return d + ' ' + byDir[d] + ' 个';
+    }).join('；');
 
     S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
     var withLrc = 0;
@@ -842,7 +863,7 @@
       var si = $('storeInfo');
       if(si) si.textContent = '目录 ' + (rootTxt || '未知') +
         ' · 找到 ' + S.tracks.length + ' 首，其中 ' + withLrc + ' 首有歌词' +
-        (S.tracks.length ? ' · 首曲 ' + S.tracks[0].name : '');
+        (dirTxt ? ' · 来源：' + dirTxt : '');
     }catch(e){}
 
     if(!S.tracks.length){
@@ -858,7 +879,9 @@
     }
 
     els.empty.classList.add('hidden');
-    toast('找到 ' + S.tracks.length + ' 首，' + withLrc + ' 首有歌词');
+    var msg = '找到 ' + S.tracks.length + ' 首，' + withLrc + ' 首有歌词';
+    if(dirOrder.length > 1) msg += '（分布在 ' + dirOrder.length + ' 个目录）';
+    toast(msg);
 
     var cfg = load(), idx = 0;
     for(var i=0;i<S.tracks.length;i++){
