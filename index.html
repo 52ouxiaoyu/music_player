@@ -184,7 +184,8 @@
   .row .lbl{font-size:13px;color:var(--dim);width:44px;flex:0 0 auto;}
   .chip{height:48px;min-width:60px;padding:0 18px;border-radius:12px;border:1px solid var(--line);
     background:var(--hud2);color:var(--dim2);font-size:16px;cursor:pointer;
-    display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    text-decoration:none;white-space:nowrap;}
   .chip.on{background:rgba(62,166,255,.16);border-color:var(--accent);color:var(--accent);}
   .chip:active{background:#242b35;}
   .chip:disabled{opacity:.35;}
@@ -220,6 +221,10 @@
   /* APK 模式下由原生读目录，不需要浏览器缓存与「清空缓存」 */
   body.native #btnClear{display:none;}
   body:not(.native) #btnRescan{display:none;}
+
+  /* APK 模式下这些入口没有意义 */
+  body.native #btnApk{display:none;}
+  body.native #apkBox{display:none;}
 
   /* APK 模式下的脚本错误提示，出问题时能把原因显示在屏幕上 */
   #errbar{position:fixed;left:0;right:0;bottom:0;z-index:999;display:none;
@@ -325,6 +330,7 @@
       <button class="chip" id="btnList">歌单</button>
       <button class="chip" id="btnFull">全屏</button>
       <button class="chip" id="btnHelp">说明</button>
+      <a class="chip" id="btnApk" href="apk/" target="_blank" rel="noopener">下载 APK</a>
       <button class="chip" id="btnClear">清空缓存</button>
     </div>
   </div>
@@ -339,13 +345,24 @@
   <div id="help" style="display:none;">
     <div class="box">
       <ol>
-        <li>电脑上把英文歌 <code>.mp3</code> 和同名歌词 <code>.lrc</code> 放进 U 盘（FAT32）。</li>
-        <li>车机浏览器打开本页，点「选歌」，定位到 U 盘，把 mp3 和 lrc 一起选中。</li>
+        <li>把英文歌 <code>.mp3</code> 和同名歌词 <code>.lrc</code> 放进同一个文件夹（U 盘或车机内部存储都行）。</li>
+        <li>网页版点「选歌」，把 mp3 和 lrc 一起选中；装了 APK 则自动列出目录里的歌，不用选。</li>
         <li>点歌词任意一行可跳到该句；「单句循环」反复磨一句；「A-B」框住任意片段反复听。</li>
         <li>速度 0.6–1.3 变速不变调，听不懂就降到 0.75。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
       </ol>
       <p>歌词支持三种写法：中英同时间戳两行、同一行用 <code> / </code> 分隔、中文另起一行不带时间戳。</p>
+
+      <div id="apkBox">
+        <p style="margin-top:10px;color:#cfd8e9;font-weight:600;">安卓版（车机推荐）</p>
+        <p>网页版在部分老车机上会被缩放或排版错乱，装 APK 更稳：直接读本机目录、不用每次选歌、有桌面图标。</p>
+        <p style="margin-top:8px;">
+          <a class="chip" href="apk/" target="_blank" rel="noopener"
+             style="height:42px;padding:0 18px;font-size:15px;color:#5fb4ff;border-color:#2b4a6b;">下载 APK（336 KB）</a>
+        </p>
+        <p id="apkUrl" style="color:#3d4552;font-size:12px;word-break:break-all;"></p>
+      </div>
+
       <p id="storeInfo" style="color:#4a5462;font-size:13px;"></p>
       <p id="verInfo" style="color:#3d4552;font-size:12px;"></p>
     </div>
@@ -362,8 +379,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.21.2';
-  var BUILD_AT = '2026-11-10 20:55';
+  var APP_VER = '1.21.3';
+  var BUILD_AT = '2026-11-10 21:40';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1564,6 +1581,14 @@
     if($('verLine')) $('verLine').textContent = 'v' + APP_VER;
     if($('verInfo')) $('verInfo').textContent = '版本 ' + verTxt;
     try{ document.title = '耀丁音乐 v' + APP_VER; }catch(e){}
+
+    // 说明里的 APK 地址：带上当前 sharecode，复制到别的设备也能直接打开
+    (function(){
+      var el = $('apkUrl');
+      if(!el) return;
+      var q = (location.search && location.search.length > 1) ? location.search : '';
+      el.textContent = '其他设备可用这个地址下载：' + location.origin + '/apk/' + q;
+    })();
 
     S.speed = typeof cfg.speed === 'number' ? cfg.speed : 1;
     S.showZh = cfg.showZh !== false;
