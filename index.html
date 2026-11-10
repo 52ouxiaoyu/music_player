@@ -71,16 +71,13 @@
 
   /* ---------- 常驻歌名（含中文译名） ---------- */
   #titlebar{position:fixed;left:0;top:0;z-index:25;pointer-events:none;
-    padding:14px 20px 30px;max-width:64%;}
-  #tEn{font-size:17px;font-weight:500;color:#9aa6b6;line-height:1.3;
+    padding:14px 20px 0;max-width:72%;}
+  #tEn{font-size:calc(var(--ly) * .56);font-weight:500;color:#9aa6b6;line-height:1.25;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #tZh{font-size:13px;color:#59636f;line-height:1.4;margin-top:2px;
+  #tZh{font-size:calc(var(--ly) * .42);color:#5f6a78;line-height:1.3;margin-top:3px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #titlebar:empty{display:none;}
   @media (max-width:640px){
-    #titlebar{padding:10px 16px 24px;max-width:70%;}
-    #tEn{font-size:15px;}
-    #tZh{font-size:12px;}
+    #titlebar{padding:10px 16px 0;max-width:76%;}
   }
   #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;gap:22px;text-align:center;padding:32px;}
@@ -308,8 +305,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.17.0';
-  var BUILD_AT = '2026-11-10 19:22';
+  var APP_VER = '1.18.0';
+  var BUILD_AT = '2026-11-10 19:28';
 
   var $ = function(id){ return document.getElementById(id); };
   var audio = $('audio');
@@ -985,6 +982,11 @@
   function layout(){
     var vh = els.view.clientHeight;
     var topSafe = 76, botSafe = 156;                 // 顶部歌名条 / 底部控制条的占用
+    var tb = $('titlebar');
+    if(tb){
+      var th = tb.offsetHeight;
+      if(th > 0) topSafe = Math.max(topSafe, th + 14);   // 按歌名实际高度让位，绝不重叠
+    }
     var areaH = Math.max(80, vh - topSafe - botSafe);
     var areaCenter = topSafe + areaH / 2;
     var active = els.inner.querySelector('.line.active');
