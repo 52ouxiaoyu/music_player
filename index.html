@@ -294,22 +294,27 @@
   #overlay h3{margin:0;font-size:18px;font-weight:600;}
   #listItems{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
   #listItems .grp{font-size:13px;color:var(--dim);letter-spacing:.02em;
-    padding:12px 6px 6px;margin-top:4px;border-top:1px solid var(--line);}
-  #listItems .grp:first-child{border-top:none;margin-top:0;padding-top:2px;}
+    padding:11px 16px 9px;background:rgba(127,140,158,.06);
+    border-bottom:1px solid rgba(127,140,158,.10);}
   #listItems .grp.on{color:var(--accent);font-weight:600;}
-  .li{display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:12px;
-    background:var(--hud);border:1px solid var(--line);font-size:17px;cursor:pointer;}
-  .li.on{border-color:var(--accent);background:rgba(62,166,255,.1);}
+  /* 一个文件夹一个框，曲目本身不再各带边框，减少线条 */
+  #listItems .grpbox{border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    margin-bottom:10px;}
+  #listItems .grpbox:last-child{margin-bottom:0;}
+  .li{display:flex;align-items:center;gap:12px;padding:15px 16px;
+    background:transparent;border:none;font-size:17px;cursor:pointer;}
+  .li + .li{border-top:1px solid rgba(127,140,158,.10);}
+  .li.on{background:rgba(62,166,255,.10);}
   .li .no{color:var(--dim);font-size:13px;min-width:24px;font-variant-numeric:tabular-nums;}
   .li .nmwrap{flex:1;min-width:0;}
   .li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .li .nmzh{font-size:12px;color:#5c6675;margin-top:2px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .li .del{flex:0 0 auto;width:44px;height:44px;padding:0;border-radius:10px;
-    border:1px solid var(--line);background:transparent;color:#5c6675;
-    font-size:20px;line-height:1;cursor:pointer;
+  .li .del{flex:0 0 auto;width:40px;height:40px;padding:0;border:none;border-radius:8px;
+    background:transparent;color:var(--dim);opacity:.55;
+    font-size:19px;line-height:1;cursor:pointer;
     display:flex;align-items:center;justify-content:center;}
-  .li .del:active{background:#2a1414;border-color:#5a2a2a;color:#e07171;}
+  .li .del:active{background:rgba(224,113,113,.16);color:#e07171;opacity:1;}
   .li .tag{font-size:12px;color:#c99a4b;}
 
   #help .box{max-width:640px;margin:0 auto;overflow-y:auto;}
@@ -549,8 +554,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.38.1';
-  var BUILD_AT = '2026-11-12 00:30';
+  var APP_VER = '1.39.0';
+  var BUILD_AT = '2026-11-12 06:40';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -927,7 +932,7 @@
       return;
     }
 
-    function addItem(i, no){
+    function addItem(box, i, no){
       var tr = S.tracks[i];
       var d = document.createElement('div');
       d.className = 'li' + (i === S.cur ? ' on' : '');
@@ -942,7 +947,7 @@
         e.stopPropagation();
         removeTrack(i);
       });
-      els.listItems.appendChild(d);
+      box.appendChild(d);
     }
 
     // 按文件夹分组（仅 APK 且确实有多个目录时才分组，否则照旧平铺）
@@ -966,17 +971,31 @@
     }
 
     if(!NATIVE || groups.length < 2){
-      S.tracks.forEach(function(tr, i){ addItem(i, i + 1); });
+      var only = document.createElement('div');
+      only.className = 'grpbox';
+      var oh = document.createElement('div');
+      oh.className = 'grp' + (groups.length === 1 ? ' on' : '');
+      oh.textContent = groups.length === 1
+        ? shortDir(groups[0].dir) + ' · ' + groups[0].items.length + ' 首'
+        : '全部歌曲 · ' + S.tracks.length + ' 首';
+      only.appendChild(oh);
+      S.tracks.forEach(function(tr, i){ addItem(only, i, i + 1); });
+      els.listItems.appendChild(only);
       return;
     }
 
     var curDir = (S.cur >= 0) ? trackDir(S.tracks[S.cur]) : '';
     groups.forEach(function(g){
+      var box = document.createElement('div');
+      box.className = 'grpbox';
+
       var h = document.createElement('div');
       h.className = 'grp' + (g.dir === curDir ? ' on' : '');
       h.textContent = shortDir(g.dir) + ' · ' + g.items.length + ' 首';
-      els.listItems.appendChild(h);
-      g.items.forEach(function(i, k){ addItem(i, k + 1); });
+      box.appendChild(h);
+
+      g.items.forEach(function(i, k){ addItem(box, i, k + 1); });
+      els.listItems.appendChild(box);
     });
   }
 
