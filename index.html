@@ -467,6 +467,7 @@
         <li>网页版点「选歌」两者一起选中；APK 第一次点「扫描」，之后每次打开直接恢复歌单，不用再扫。</li>
         <li>点歌词任意一行可跳到该句；「单句循环」反复磨一句；「A-B」框住任意片段反复听。</li>
         <li>速度 0.6–1.3 变速不变调，听不懂就降到 0.75。</li>
+        <li><b>双击屏幕任意位置</b>：播放 / 暂停，不用低头找底部按钮。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
       </ol>
       <p>歌词支持三种写法：中英同时间戳两行、同一行用 <code> / </code> 分隔、中文另起一行不带时间戳。</p>
@@ -499,8 +500,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.30.0';
-  var BUILD_AT = '2026-11-11 22:05';
+  var APP_VER = '1.31.0';
+  var BUILD_AT = '2026-11-11 22:20';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1353,11 +1354,11 @@
         zh.textContent = ln.zh;
         d.appendChild(zh);
       }
-      d.addEventListener('click', function(){
+      d.addEventListener('click', function(e){
         if(els.sheet.classList.contains('open')){ openSheet(false); return; }
-        if(els.hud.classList.contains('hide') || justWoke()){ showHud(); return; }
-        audio.currentTime = S.lines[i].t + 0.02;
-        if(audio.paused) safePlay();
+        var hidden = els.hud.classList.contains('hide') || justWoke();
+        showHud();                      // 先唤醒控制条
+        handleTap(e, hidden ? null : i); // 控制条刚被唤醒时只记点，不跳句
       });
       els.inner.appendChild(d);
     });
@@ -1508,6 +1509,43 @@
   }
 
   /* ---------- 控制 ---------- */
+  /* ---------- 双击屏幕：播放 / 暂停 ---------- */
+  var dbl = { t: 0, x: 0, y: 0, timer: 0 };
+
+  function isUiTarget(el){
+    return !!(el && el.closest &&
+      el.closest('button, .chip, input, a, #seek, #sheet, #overlay, #notice, .del, #listItems'));
+  }
+
+  // lineIdx 为 null 表示点在空白处：只参与双击判定，不跳句
+  function handleTap(e, lineIdx){
+    if(isUiTarget(e.target)) return;
+
+    var pt = (e.changedTouches && e.changedTouches[0]) || e;
+    var now = Date.now();
+    var near = Math.abs(pt.clientX - dbl.x) < 44 && Math.abs(pt.clientY - dbl.y) < 44;
+    var quick = (now - dbl.t) < 330 && near;
+
+    if(quick){
+      clearTimeout(dbl.timer); dbl.timer = 0; dbl.t = 0;
+      if(S.cur >= 0){                       // 有歌才切，没歌不误触
+        if(audio.paused) safePlay(); else audio.pause();
+      }
+      return;
+    }
+
+    dbl.t = now; dbl.x = pt.clientX; dbl.y = pt.clientY;
+
+    if(lineIdx !== null && lineIdx !== undefined){
+      // 单击跳句延迟 280ms，等一等有没有第二下
+      dbl.timer = setTimeout(function(){
+        dbl.timer = 0;
+        audio.currentTime = S.lines[lineIdx].t + 0.02;
+        if(audio.paused) safePlay();
+      }, 280);
+    }
+  }
+
   function togglePlay(){
     if(!S.tracks.length){ $('btnDemo').click(); return; }
     if(audio.paused) safePlay(); else audio.pause();
@@ -1933,6 +1971,12 @@
       if(p && typeof p.catch === 'function') p.catch(function(){});
     }catch(e){}
   }
+
+  // 空白处双击也能切播放（歌词行自己有监听，这里跳过避免重复计数）
+  els.view.addEventListener('click', function(e){
+    if(e.target && e.target.closest && e.target.closest('.line')) return;
+    handleTap(e, null);
+  }, false);
 
   document.addEventListener('touchend', autoFs, true);
   document.addEventListener('mouseup', autoFs, true);
