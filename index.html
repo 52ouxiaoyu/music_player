@@ -50,7 +50,9 @@
     --floatC2:rgba(7,9,13,.62);
     --floatTxt:rgba(238,244,251,.66);
     --playTxt:#04121f;
+    --panelW:400px;
   }
+  @media (max-width:700px){ :root{ --panelW:92vw; } }
 
   /* 日间主题：干净白底 + 高对比深字（之前的米黄底 + 灰字会糊成一片"灰蒙蒙"） */
   html.light{
@@ -239,7 +241,7 @@
   .ibtn.nav.list{width:auto;height:44px;padding:0 15px;border-radius:22px;margin-left:14px;
     border:1px solid var(--line);background:var(--btnBg);color:var(--btnTxt);
     display:flex;align-items:center;gap:7px;opacity:.92;}
-  .ibtn.nav.list svg{width:21px;height:21px;flex:0 0 auto;}
+  .ibtn.nav.list svg{display:none;}   /* 已经写了「歌单」两字，图标是多余的 */
   .ibtn.nav.list .lbl{font-size:15px;line-height:1;letter-spacing:.02em;}
   .ibtn.nav.list:active,.ibtn.nav.list.press{background:var(--btnActive);opacity:1;}
 
@@ -263,9 +265,22 @@
   #abInfo{font-size:13px;color:var(--dim);}
 
   /* ---------- 歌单 / 说明 ---------- */
-  #overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;background:var(--overlayBg);display:none;
-    flex-direction:column;padding:20px;}
-  #overlay.open{display:flex;}
+  /* 歌单/说明做成右侧面板，不再盖住整个屏幕，左边歌词照样能看 */
+  #overlay{position:fixed;top:0;right:0;bottom:0;z-index:60;
+    width:var(--panelW);background:var(--hud);border-left:1px solid var(--line);
+    box-shadow:-24px 0 48px rgba(0,0,0,.42);border-radius:18px 0 0 18px;
+    display:flex;flex-direction:column;padding:20px;
+    transform:translateX(103%);transition:transform .28s cubic-bezier(.22,.61,.36,1);}
+  #overlay.open{transform:translateX(0);}
+  #overlay.help{width:min(560px,52vw);}
+  /* 面板打开时歌词整块让位到剩余区域的中间 */
+  @media (min-width:701px){
+    /* 绝对定位的歌词块按 right 让位（padding 对绝对定位子元素无效） */
+    body.panel-open #lyricInner{right:var(--panelW);}
+    /* 底部控制区一起让位，否则进度条和按钮会被面板压住 */
+    body.panel-open .hud-bottom{padding-right:calc(var(--panelW) + 18px);}
+    body.panel-open #titlebar{max-width:calc(100% - var(--panelW) - 20px);}
+  }
   #overlay .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;}
   #overlay h3{margin:0;font-size:18px;font-weight:600;}
   #listItems{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
@@ -350,7 +365,7 @@
     .ibtn{ width:46px; height:46px; }
     .ibtn.nav.list{ width:38px; height:38px; padding:0; margin-left:6px; gap:0; }
     .ibtn.nav.list .lbl{ display:none; }
-    .ibtn.nav.list svg{ width:20px; height:20px; }
+    .ibtn.nav.list svg{ display:block; width:20px; height:20px; }
     #btnMore{ width:34px; height:34px; margin-left:4px; }
     #btnMore svg{ width:18px; height:18px; }
     .ibtn.play{ width:58px; height:58px; }
@@ -515,8 +530,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.33.0';
-  var BUILD_AT = '2026-11-11 22:50';
+  var APP_VER = '1.34.0';
+  var BUILD_AT = '2026-11-11 23:10';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1407,6 +1422,7 @@
       }
       d.addEventListener('click', function(e){
         if(els.sheet.classList.contains('open')){ openSheet(false); return; }
+        if(els.overlay.classList.contains('open')){ closeOverlay(); return; }
         var hidden = els.hud.classList.contains('hide') || justWoke();
         showHud();                      // 先唤醒控制条
         handleTap(e, hidden ? null : i); // 控制条刚被唤醒时只记点，不跳句
@@ -1796,6 +1812,10 @@
   function openOverlay(mode){
     S.ovMode = mode;
     els.overlay.classList.add('open');
+    els.overlay.classList.toggle('help', mode === 'help');
+    document.body.classList.add('panel-open');
+    clearTimeout(openOverlay._t);
+    openOverlay._t = setTimeout(function(){ fitLines(); layout(); }, 320);
     if(mode === 'list'){
       els.ovTitle.textContent = '歌单';
       $('listItems').style.display = 'flex';
@@ -1810,6 +1830,9 @@
   }
   function closeOverlay(){
     els.overlay.classList.remove('open');
+    document.body.classList.remove('panel-open');
+    clearTimeout(openOverlay._t);
+    openOverlay._t = setTimeout(function(){ fitLines(); layout(); }, 320);
     armIdle();
   }
 
