@@ -310,11 +310,21 @@
   body.native #btnApk{display:none;}
   body.native #apkBox{display:none;}
 
-  /* APK 模式下的脚本错误提示，出问题时能把原因显示在屏幕上 */
-  #errbar{position:fixed;left:0;right:0;bottom:0;z-index:999;display:none;
-    background:#3a1214;color:#ffb4b4;border-top:1px solid #6b2426;
-    font-size:13px;line-height:1.5;padding:10px 14px;max-height:38%;overflow-y:auto;
-    font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;}
+  /* 临时提示条：只在出问题时短暂出现，10 秒自动消失，点一下可关。
+     位置控制在底部控制条上方，绝不遮挡播放按钮 */
+  #notice{position:fixed;left:50%;bottom:186px;transform:translateX(-50%) translateY(8px);
+    z-index:90;display:none;align-items:center;gap:12px;max-width:80%;
+    background:rgba(28,32,39,.96);border:1px solid rgba(255,255,255,.10);
+    border-radius:14px;padding:12px 16px;font-size:14px;line-height:1.5;
+    color:#e8eef6;box-shadow:0 6px 24px rgba(0,0,0,.45);
+    opacity:0;transition:opacity .25s ease, transform .25s ease;}
+  #notice.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0);}
+  #notice .nTxt{flex:1;}
+  #notice button{flex:0 0 auto;height:36px;padding:0 14px;border-radius:18px;
+    border:none;background:var(--accent);color:#04121f;font-size:14px;font-weight:600;
+    cursor:pointer;}
+  html.light #notice{background:rgba(255,255,255,.97);color:#1a1f26;
+    border-color:rgba(20,24,30,.10);}
 
   #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:80;
     background:var(--toastBg);border:1px solid var(--line);border-radius:12px;
@@ -470,6 +480,7 @@
 <input type="file" id="fileInput" multiple accept="audio/*,.lrc,.txt,.mp3,.m4a,.aac,.wav,.flac,.ogg" style="display:none">
 <audio id="audio" preload="metadata"></audio>
 <div id="toast"></div>
+<div id="notice"><span class="nTxt" id="noticeTxt"></span><button id="noticeAct" style="display:none"></button></div>
 
 <script>
 (function(){
@@ -477,8 +488,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.28.0';
-  var BUILD_AT = '2026-11-11 08:10';
+  var APP_VER = '1.29.0';
+  var BUILD_AT = '2026-11-11 21:55';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -509,13 +520,7 @@
       var p = audio.play();
       if(p && typeof p.catch === 'function'){
         p.catch(function(err){
-          // 不再静默吞掉：播不了的时候把原因显示出来
-          if(NATIVE){
-            var d = $('errbar');
-            if(!d){ d = document.createElement('div'); d.id = 'errbar'; document.body.appendChild(d); }
-            d.style.display = 'block';
-            d.textContent += '播放被拒绝：' + ((err && err.name) ? err.name : err) + '\n';
-          }
+          if(NATIVE) showNotice('播放被系统拦截了，点一下播放键再试');
         });
       }
     }catch(e){}
@@ -706,6 +711,35 @@
     toast._t = setTimeout(function(){ t.classList.remove('show'); }, 2000);
   }
 
+  // 临时提示条：10 秒自动消失，点一下也能关，不会常驻挡按钮
+  function showNotice(msg, actionLabel, action){
+    var n = $('notice'), txt = $('noticeTxt'), act = $('noticeAct');
+    if(!n) return;
+    txt.textContent = msg;
+    if(actionLabel && action){
+      act.textContent = actionLabel;
+      act.style.display = '';
+      act.onclick = function(e){
+        e.stopPropagation();
+        hideNotice();
+        try{ action(); }catch(err){}
+      };
+    }else{
+      act.style.display = 'none';
+      act.onclick = null;
+    }
+    n.onclick = hideNotice;          // 点提示条本身也能关掉
+    n.classList.add('show');
+    clearTimeout(showNotice._t);
+    showNotice._t = setTimeout(hideNotice, 10000);
+  }
+
+  function hideNotice(){
+    var n = $('notice');
+    if(n) n.classList.remove('show');
+    clearTimeout(showNotice._t);
+  }
+
   // 逐首写入，避免一次占用太多内存
   function cacheTracks(items, done){
     var i = 0, fail = 0;
@@ -892,7 +926,7 @@
   }
 
   /* ---------- APK 模式：开始页（默认不自动扫描） ---------- */
-  function showStart(){
+  function showStart(msg){
     els.empty.classList.remove('hidden');
     els.inner.innerHTML = '';
     var root = '';
@@ -900,9 +934,9 @@
 
     var tip = document.querySelector('#empty .tip');
     if(tip){
-      tip.textContent = root
-        ? '上次的目录：' + root + '。点「扫描」读取这个文件夹，或换一个。'
-        : '点「扫描」自动找车机里的音乐，或直接选一个文件夹。';
+      tip.textContent = msg ? msg
+        : (root ? '上次的目录：' + root + '。点「扫描」读取这个文件夹，或换一个。'
+                : '点「扫描」自动找车机里的音乐，或直接选一个文件夹。');
     }
     var b1 = $('btnScanEmpty'); if(b1) b1.textContent = '扫描';
     var b2 = $('btnPickEmpty'); if(b2) b2.textContent = '换文件夹';
@@ -1075,14 +1109,22 @@
 
     S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
     trackHist = [];
-    var withLrc = 0;
+    var withLrc = 0, missing = 0;
     arr.forEach(function(it){
+      // 文件被删/被移动的就跳过，别让它在播放时报错
+      if(NATIVE && NATIVE.exists && it.p && NATIVE.exists(it.p) === false){ missing++; return; }
       var tr = { name: it.n, url: 'file://' + it.p, lines: [], native: true,
                  lrcPath: it.l || '', size: it.s || 0 };
       applyTrackMeta(tr, '');
       if(it.l) withLrc++;
       S.tracks.push(tr);
     });
+
+    if(!S.tracks.length){
+      restoreLib._allMissing = (missing > 0);
+      restoreLib._missing = missing;
+      return false;                     // 全没了，交给开始页
+    }
     renderList();
     els.empty.classList.add('hidden');
 
@@ -1095,7 +1137,12 @@
     var si = $('storeInfo');
     if(si) si.textContent = '已记住 ' + S.tracks.length + ' 首，其中 ' + withLrc +
       ' 首带歌词；想刷新列表点「重新扫描」';
-    toast('已恢复歌单 ' + S.tracks.length + ' 首');
+    if(missing > 0){
+      showNotice('有 ' + missing + ' 首歌的文件不在了，已跳过。点右边可重新扫描。',
+                 '重新扫描', function(){ hideNotice(); runScan(); });
+    }else{
+      toast('已恢复歌单 ' + S.tracks.length + ' 首');
+    }
     return true;
   }
 
@@ -1685,16 +1732,13 @@
   audio.addEventListener('error', function(){
     if(!audio.getAttribute('src')) return;
     var nm = (S.cur >= 0 && S.tracks[S.cur]) ? (S.tracks[S.cur].title || S.tracks[S.cur].name) : '';
-    var src = audio.getAttribute('src') || '';
-    toast('无法播放' + (nm ? '：' + nm : '') + '，格式可能不支持');
+    toast('无法播放' + (nm ? '：' + nm : ''));
     if(NATIVE){
-      var d = $('errbar');
-      if(!d){ d = document.createElement('div'); d.id = 'errbar'; document.body.appendChild(d); }
-      d.style.display = 'block';
-      d.textContent += '音频加载失败：' + nm + '\n地址：' + src + '\n错误码：' +
-        (audio.error ? audio.error.code : '未知') + '\n';
+      showNotice('这首歌的文件好像不在了（可能被移动或删除）。点右边重新扫描一下。',
+                 '重新扫描', function(){ hideNotice(); runScan(); });
     }
   });
+
   audio.addEventListener('ended', function(){
     if(audio.loop) return;                 // 单曲循环由 audio.loop 自己处理
     if(!S.tracks.length) return;
@@ -1801,21 +1845,15 @@
     toast(S.autoScan ? '以后打开会自动扫描' : '以后打开停在开始页，手动点扫描');
   });
 
-  // APK 模式下把脚本错误直接显示出来，避免"卡住但没有任何提示"
+  // 脚本错误只做轻提示，不再用常驻红条（会挡住底部按钮）
   window.onerror = function(msg, src, line){
     try{
-      if(!NATIVE) return false;
-      var d = $('errbar');
-      if(!d){
-        d = document.createElement('div');
-        d.id = 'errbar';
-        document.body.appendChild(d);
-      }
-      d.style.display = 'block';
-      d.textContent += '脚本错误：' + msg + '（第 ' + line + ' 行）\n';
+      if(NATIVE) showNotice('出了点小问题，如果界面不对，关掉重开一次');
+      else console.error(msg, src, line);
     }catch(e){}
     return false;
   };
+
   $('btnPickEmpty').addEventListener('click', pick);
   $('fileInput').addEventListener('change', function(e){ addFiles(e.target.files); });
 
@@ -1978,7 +2016,14 @@
     }else if(NATIVE){
       setTimeout(function(){
         if(S.autoScan){ loadNative(); return; }
-        if(!restoreLib()) showStart();     // 扫过一次就再也不扫
+        if(!restoreLib()){
+          // 扫过一次就再也不扫；文件全没了就在开始页说清楚，不用浮条
+          if(restoreLib._allMissing){
+            showStart('上次记住的 ' + restoreLib._missing + ' 首歌都不在了，可能被移动或删除。点「扫描」重新读一次，或换个文件夹。');
+          }else{
+            showStart();
+          }
+        }
       }, 60);
     }else{
       setTimeout(restoreLibrary, 60);
