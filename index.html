@@ -285,6 +285,7 @@
     body.panel-open #titlebar{max-width:calc(100% - var(--panelW) - 20px);}
   }
   #overlay .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;}
+  #overlay:not(.help) .head{display:none;}   /* 歌单不用标题栏：点面板外即可关闭 */
   #overlay h3{margin:0;font-size:18px;font-weight:600;}
   #listItems{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
   #listItems .grp{font-size:13px;color:var(--dim);letter-spacing:.02em;
@@ -492,7 +493,6 @@
 <div id="overlay">
   <div class="head">
     <h3 id="ovTitle">歌单</h3>
-    <button class="chip" id="btnOvClose">关闭</button>
   </div>
   <div id="listItems"></div>
   <div id="help" style="display:none;">
@@ -536,8 +536,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.35.0';
-  var BUILD_AT = '2026-11-11 23:25';
+  var APP_VER = '1.36.0';
+  var BUILD_AT = '2026-11-11 23:40';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1866,7 +1866,6 @@
   $('btnMore').addEventListener('click', function(){
     openSheet(!els.sheet.classList.contains('open'));
   });
-  $('btnOvClose').addEventListener('click', closeOverlay);
 
   audio.addEventListener('play', syncPlayUI);
   audio.addEventListener('pause', function(){
@@ -2030,7 +2029,12 @@
   $('btnPickEmpty').addEventListener('click', pick);
   $('fileInput').addEventListener('change', function(e){ addFiles(e.target.files); });
 
-  $('btnList').addEventListener('click', function(){ openSheet(false); openOverlay('list'); });
+  $('btnList').addEventListener('click', function(){
+    openSheet(false);
+    // 没有关闭按钮了，再点一次「歌单」就是收起
+    if(els.overlay.classList.contains('open') && S.ovMode === 'list'){ closeOverlay(); return; }
+    openOverlay('list');
+  });
   $('btnHelp').addEventListener('click', function(){ openSheet(false); openOverlay('help'); updateKeyInfo(); });
 
   $('btnClear').addEventListener('click', function(){
@@ -2099,6 +2103,7 @@
 
   // 空白处双击也能切播放（歌词行自己有监听，这里跳过避免重复计数）
   els.view.addEventListener('click', function(e){
+    if(els.overlay.classList.contains('open')){ closeOverlay(); return; }
     if(e.target && e.target.closest && e.target.closest('.line')) return;
     handleTap(e, null);
   }, false);
