@@ -223,7 +223,7 @@
   #seek::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--thumb);}
 
   .transport{display:flex;align-items:center;justify-content:center;gap:22px;
-    padding:2px 0 4px 194px;}  /* 左侧补右侧「歌单+设置」的宽度，播放键居中 */
+    padding:2px 0 4px;}       /* 工具键已脱离这一行，播放键自然居中 */
   .ibtn{width:58px;height:58px;padding:0;border-radius:50%;border:1px solid var(--line);
     background:var(--btnBg);color:var(--btnTxt);cursor:pointer;
     display:flex;align-items:center;justify-content:center;
@@ -238,7 +238,10 @@
   .ibtn.nav svg{width:22px;height:22px;}
   .ibtn.nav:active{background:var(--btnActive);color:var(--btnTxt);}
   /* 歌单：与播放键同排，但去掉圆框、再左移一点，读作"工具"而不是"播放" */
-  .ibtn.nav.list{width:auto;height:44px;padding:0 15px;border-radius:22px;margin-left:14px;
+  /* 歌单 + 设置：固定在右下角，与播放键同行但不参与居中 */
+  .tr-tools{position:absolute;right:20px;bottom:46px;
+    display:flex;align-items:center;gap:10px;pointer-events:auto;}
+  .ibtn.nav.list{width:auto;height:42px;padding:0 15px;border-radius:21px;
     border:1px solid var(--line);background:var(--btnBg);color:var(--btnTxt);
     display:flex;align-items:center;gap:7px;opacity:.92;}
   .ibtn.nav.list svg{display:none;}   /* 已经写了「歌单」两字，图标是多余的 */
@@ -361,7 +364,8 @@
     .line .zh{ font-size:.72em; }
     .hud-top{ padding:12px 14px; }
     .hud-bottom{ padding:20px 14px 22px; gap:12px; }
-    .transport{ gap:8px; padding-left:0; }
+    .transport{ gap:8px; padding:2px 84px 4px 0; }
+    .tr-tools{ right:10px; bottom:40px; gap:6px; }
     .ibtn{ width:46px; height:46px; }
     .ibtn.nav.list{ width:38px; height:38px; padding:0; margin-left:6px; gap:0; }
     .ibtn.nav.list .lbl{ display:none; }
@@ -426,6 +430,8 @@
       <button class="ibtn nav" id="btnNextTrack" aria-label="下一首" title="下一首">
         <svg viewBox="0 0 24 24"><path d="M13 6v12l7-6zM4 6v12l7-6z"/></svg>
       </button>
+    </div>
+    <div class="tr-tools">
       <button class="ibtn nav list" id="btnList" aria-label="歌单" title="歌单">
         <svg viewBox="0 0 24 24"><path d="M3.6 6.2h10.2v2.3H3.6zM3.6 10.9h10.2v2.3H3.6zM3.6 15.6h6.6v2.3H3.6zM16.2 8.6l4.9 3.8-4.9 3.8z"/></svg>
         <span class="lbl">歌单</span>
@@ -530,8 +536,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.34.0';
-  var BUILD_AT = '2026-11-11 23:10';
+  var APP_VER = '1.35.0';
+  var BUILD_AT = '2026-11-11 23:25';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
