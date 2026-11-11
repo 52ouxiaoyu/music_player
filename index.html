@@ -96,24 +96,6 @@
   @media (min-width:1800px){ :root{ --ly:58px; } }
 
   /* 手机竖屏：不追「一行放下」，字号优先，长句折行 */
-  @media (max-width:640px){
-    :root{ --ly:30px; }
-    #lyricInner{ padding:0 20px; }
-    #lyricView{ padding:0 0 130px; }
-    .line{ padding:.3em .25em; line-height:1.32; }
-    .line .zh{ font-size:.72em; }
-    .hud-top{ padding:12px 14px; }
-    .hud-bottom{ padding:20px 14px 22px; gap:12px; }
-    .transport{ gap:12px; }
-    .ibtn{ width:50px; height:50px; }
-    .ibtn.play{ width:64px; height:64px; }
-    .ibtn.play svg{ width:28px; height:28px; }
-    .ibtn.nav{ width:44px; height:44px; }
-    .ibtn.nav svg{ width:19px; height:19px; }
-    .t{ min-width:34px; font-size:11px; }
-    #sheet{ padding:8px 16px 22px; }
-    .chip{ height:44px; padding:0 14px; font-size:15px; }
-  }
 
   /* 老版 WebView（Chrome < 84）不支持 flex 的 gap，用外边距兜底 */
   @supports not (gap: 1px){
@@ -236,7 +218,8 @@
   #seek::-moz-range-track{height:4px;border-radius:2px;background:var(--grad);}
   #seek::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--thumb);}
 
-  .transport{display:flex;align-items:center;justify-content:center;gap:22px;padding:2px 0 4px;}
+  .transport{display:flex;align-items:center;justify-content:center;gap:22px;
+    padding:2px 0 4px 54px;}   /* 左侧补歌单键的宽度，让播放键保持在屏幕正中 */
   .ibtn{width:58px;height:58px;padding:0;border-radius:50%;border:1px solid var(--line);
     background:var(--btnBg);color:var(--btnTxt);cursor:pointer;
     display:flex;align-items:center;justify-content:center;
@@ -250,6 +233,11 @@
   .ibtn.nav{width:50px;height:50px;color:var(--btnNavTxt);background:var(--btnNavBg);}
   .ibtn.nav svg{width:22px;height:22px;}
   .ibtn.nav:active{background:var(--btnActive);color:var(--btnTxt);}
+  /* 歌单：与播放键同排，但去掉圆框、再左移一点，读作"工具"而不是"播放" */
+  .ibtn.nav.list{width:44px;height:44px;margin-left:10px;border-color:transparent;
+    background:transparent;color:var(--btnTxt);opacity:.72;}
+  .ibtn.list svg{width:24px;height:24px;}
+  .ibtn.nav.list:active,.ibtn.nav.list.press{background:var(--btnActive);opacity:1;}
 
   /* ---------- 抽屉：所有次要功能 ---------- */
   #sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--hud);
@@ -340,6 +328,27 @@
   #deskhint .txt{flex:1;}
   #deskhint button{flex:0 0 auto;height:34px;padding:0 14px;border-radius:9px;
     border:1px solid #4a3a1a;background:transparent;color:#ecd6a6;font-size:14px;cursor:pointer;}
+  /* 手机竖屏适配：必须放在所有基础规则之后，否则会被后面的规则覆盖（之前就是这个问题） */
+  @media (max-width:640px){
+    :root{ --ly:30px; }
+    #lyricInner{ padding:0 20px; }
+    #lyricView{ padding:0 0 130px; }
+    .line{ padding:.3em .25em; line-height:1.32; }
+    .line .zh{ font-size:.72em; }
+    .hud-top{ padding:12px 14px; }
+    .hud-bottom{ padding:20px 14px 22px; gap:12px; }
+    .transport{ gap:12px; padding-left:0; }
+    .ibtn{ width:50px; height:50px; }
+    .ibtn.nav.list{ width:40px; height:40px; margin-left:4px; }
+    .ibtn.list svg{ width:22px; height:22px; }
+    .ibtn.play{ width:64px; height:64px; }
+    .ibtn.play svg{ width:28px; height:28px; }
+    .ibtn.nav{ width:44px; height:44px; }
+    .ibtn.nav svg{ width:19px; height:19px; }
+    .t{ min-width:34px; font-size:11px; }
+    #sheet{ padding:8px 16px 22px; }
+    .chip{ height:44px; padding:0 14px; font-size:15px; }
+  }
 </style>
 </head>
 <body>
@@ -393,6 +402,9 @@
       <button class="ibtn nav" id="btnNextTrack" aria-label="下一首" title="下一首">
         <svg viewBox="0 0 24 24"><path d="M13 6v12l7-6zM4 6v12l7-6z"/></svg>
       </button>
+      <button class="ibtn nav list" id="btnList" aria-label="歌单" title="歌单">
+        <svg viewBox="0 0 24 24"><path d="M4 6h11v2.1H4zM4 11h11v2.1H4zM4 16h7.5v2.1H4zM17 8.4l5 3.9-5 3.9z"/></svg>
+      </button>
     </div>
   </div>
 </div>
@@ -433,7 +445,6 @@
       <span class="lbl">操作</span>
       <button class="chip" id="btnPick">选歌</button>
       <button class="chip" id="btnRescan">重新扫描</button>
-      <button class="chip" id="btnList">歌单</button>
       <button class="chip" id="btnFull">全屏</button>
       <button class="chip" id="btnHelp">说明</button>
       <a class="chip" id="btnApk" href="apk/" target="_blank" rel="noopener">下载 APK</a>
@@ -488,8 +499,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.29.0';
-  var BUILD_AT = '2026-11-11 21:55';
+  var APP_VER = '1.30.0';
+  var BUILD_AT = '2026-11-11 22:05';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1353,7 +1364,6 @@
     S.lineIdx = -1;
     finishBind();
   }
-
 
 
   /* 全曲统一字号：先量每行在基准字号下需要多宽，取「能覆盖 97% 行」的比例，
