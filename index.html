@@ -483,6 +483,13 @@
       <span id="abInfo">未设置</span>
     </div>
     <div class="row">
+      <span class="lbl">同步</span>
+      <button class="chip" id="btnOffEarly">歌词太早</button>
+      <button class="chip" id="btnOffLate">歌词太晚</button>
+      <button class="chip" id="btnOffReset">归零</button>
+      <span id="offInfo">已对齐</span>
+    </div>
+    <div class="row">
       <span class="lbl">操作</span>
       <button class="chip" id="btnPick">选歌</button>
       <button class="chip" id="btnRescan">重新扫描</button>
@@ -509,6 +516,7 @@
         <li>速度 0.6–1.3 变速不变调，听不懂就降到 0.75。</li>
         <li><b>双击屏幕任意位置</b>：播放 / 暂停，不用低头找底部按钮。</li>
         <li>歌曲分散在多个文件夹时，点「只播本文件夹」，之后只在当前这首所在的文件夹里循环。</li>
+        <li>歌词和声音对不上时，抽屉里「同步」点「歌词太早 / 歌词太晚」，每次 0.5 秒，每首歌单独记住。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
       </ol>
       <p>歌词支持三种写法：中英同时间戳两行、同一行用 <code> / </code> 分隔、中文另起一行不带时间戳。</p>
@@ -541,8 +549,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.37.0';
-  var BUILD_AT = '2026-11-11 23:55';
+  var APP_VER = '1.38.0';
+  var BUILD_AT = '2026-11-12 00:15';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -561,7 +569,7 @@
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, lang: 'both', lineLoop: false, shuffle: false, folderMode: false, theme: 'dark', autoScan: false,
+    speed: 1, lang: 'both', lineLoop: false, off: 0, shuffle: false, folderMode: false, theme: 'dark', autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -1328,6 +1336,8 @@
         if(txt){ tr.lines = parseLRC(txt); applyTrackMeta(tr, txt); }
       }catch(e){}
     }
+    S.off = Number(load()['off.' + tr.name]) || 0;
+    updateOffInfo();
     audio.src = tr.url;
     showTitle(tr);
 
@@ -1560,6 +1570,11 @@
     }
   }
 
+  // 歌词偏移（秒）：正数表示歌词整体往后推（解决"歌词比声音早"）
+  function lineTime(i){
+    return S.lines[i].t + (S.off || 0);
+  }
+
   function findLine(t){
     var lo = 0, hi = S.lines.length - 1, ans = -1;
     while(lo <= hi){
@@ -1578,10 +1593,10 @@
         var next = S.lines[S.lineIdx + 1];
         var end = next ? next.t : (isFinite(audio.duration) ? audio.duration : 0);
         if(end && audio.currentTime >= end - 0.03){
-          audio.currentTime = S.lines[S.lineIdx].t + 0.02;
+          audio.currentTime = lineTime(S.lineIdx) + 0.02;
         }
       }
-      var i = S.lines.length ? findLine(audio.currentTime) : -1;
+      var i = S.lines.length ? findLine(audio.currentTime - (S.off || 0)) : -1;
       if(i >= 0) setActive(i);
     }
     S.raf = requestAnimationFrame(tick);
@@ -1619,7 +1634,7 @@
       // 单击跳句延迟 280ms，等一等有没有第二下
       dbl.timer = setTimeout(function(){
         dbl.timer = 0;
-        audio.currentTime = S.lines[lineIdx].t + 0.02;
+        audio.currentTime = lineTime(lineIdx) + 0.02;
         if(audio.paused) safePlay();
       }, 280);
     }
@@ -1649,6 +1664,39 @@
     f.className = (has && audio.paused) ? 'show' : '';
   }
 
+  /* ---------- 歌词同步偏移（每首歌单独记） ---------- */
+  function curTrackName(){
+    return (S.cur >= 0 && S.tracks[S.cur]) ? S.tracks[S.cur].name : '';
+  }
+
+  function updateOffInfo(){
+    var el = $('offInfo');
+    if(!el) return;
+    var v = S.off || 0;
+    el.textContent = (Math.abs(v) < 0.05) ? '已对齐'
+      : (v > 0 ? '+' + v.toFixed(1) + ' 秒' : v.toFixed(1) + ' 秒');
+    el.style.color = (Math.abs(v) < 0.05) ? '' : 'var(--accent)';
+  }
+
+  function setOff(v, quiet){
+    v = Math.max(-10, Math.min(10, Math.round(v * 10) / 10));
+    S.off = v;
+    var nm = curTrackName();
+    if(nm){
+      var o = {}; o['off.' + nm] = v;
+      save(o);
+    }
+    updateOffInfo();
+    if(S.lines.length){                 // 立刻按新偏移重算当前句
+      var i = findLine(audio.currentTime - (S.off || 0));
+      if(i >= 0) setActive(i);
+    }
+    if(!quiet && nm){
+      toast(v === 0 ? '歌词已对齐' :
+        (v > 0 ? '歌词延后 ' + v.toFixed(1) + ' 秒' : '歌词提前 ' + (-v).toFixed(1) + ' 秒'));
+    }
+  }
+
   function setBtnLabel(el, text){
     el.setAttribute('aria-label', text);
     el.setAttribute('title', text);
@@ -1659,12 +1707,12 @@
       audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + dir*10));
       return;
     }
-    var cur = findLine(audio.currentTime);
+    var cur = findLine(audio.currentTime - (S.off || 0));
     var target = cur + dir;
-    if(dir > 0 && cur >= 0 && audio.currentTime - S.lines[cur].t > 0.8) target = cur + 1;
+    if(dir > 0 && cur >= 0 && (audio.currentTime - (S.off || 0)) - S.lines[cur].t > 0.8) target = cur + 1;
     if(target < 0) target = 0;
     if(target >= S.lines.length) target = S.lines.length - 1;
-    audio.currentTime = S.lines[target].t + 0.02;
+    audio.currentTime = lineTime(target) + 0.02;
     setActive(target);
     if(audio.paused) safePlay();
   }
@@ -1958,6 +2006,10 @@
   document.querySelectorAll('[data-speed]').forEach(function(b){
     b.addEventListener('click', function(){ setSpeed(parseFloat(b.getAttribute('data-speed'))); });
   });
+  $('btnOffEarly').addEventListener('click', function(){ setOff((S.off || 0) + 0.5); });
+  $('btnOffLate').addEventListener('click', function(){ setOff((S.off || 0) - 0.5); });
+  $('btnOffReset').addEventListener('click', function(){ setOff(0); });
+
   els.btnZh.addEventListener('click', function(){
     var i = LANG_ORDER.indexOf(S.lang);
     setLang(LANG_ORDER[(i + 1) % LANG_ORDER.length]);
@@ -1965,7 +2017,7 @@
   els.btnLineLoop.addEventListener('click', function(){
     S.lineLoop = !S.lineLoop;
     els.btnLineLoop.classList.toggle('on', S.lineLoop);
-    if(S.lineLoop && S.lineIdx >= 0) audio.currentTime = S.lines[S.lineIdx].t + 0.02;
+    if(S.lineLoop && S.lineIdx >= 0) audio.currentTime = lineTime(S.lineIdx) + 0.02;
   });
   els.btnAllLoop.addEventListener('click', function(){
     audio.loop = !audio.loop;
