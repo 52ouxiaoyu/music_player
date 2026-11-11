@@ -265,6 +265,10 @@
   #overlay .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;}
   #overlay h3{margin:0;font-size:18px;font-weight:600;}
   #listItems{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+  #listItems .grp{font-size:13px;color:var(--dim);letter-spacing:.02em;
+    padding:12px 6px 6px;margin-top:4px;border-top:1px solid var(--line);}
+  #listItems .grp:first-child{border-top:none;margin-top:0;padding-top:2px;}
+  #listItems .grp.on{color:var(--accent);font-weight:600;}
   .li{display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:12px;
     background:var(--hud);border:1px solid var(--line);font-size:17px;cursor:pointer;}
   .li.on{border-color:var(--accent);background:rgba(62,166,255,.1);}
@@ -292,6 +296,7 @@
   /* 仅在对应模式下出现的入口 */
   body:not(.native) #btnScanEmpty{display:none;}
   body:not(.native) #btnAutoScan{display:none;}
+  body:not(.native) #btnFolder{display:none;}
   body.native #btnDemo{display:none;}
 
   /* APK 模式下这些入口没有意义 */
@@ -426,6 +431,7 @@
       <button class="chip" id="btnLineLoop">单句循环</button>
       <button class="chip" id="btnAllLoop">单曲循环</button>
       <button class="chip" id="btnShuffle">随机播放</button>
+      <button class="chip" id="btnFolder">只播本文件夹</button>
       <button class="chip on" id="btnZh">显示译文</button>
     </div>
     <div class="row">
@@ -468,6 +474,7 @@
         <li>点歌词任意一行可跳到该句；「单句循环」反复磨一句；「A-B」框住任意片段反复听。</li>
         <li>速度 0.6–1.3 变速不变调，听不懂就降到 0.75。</li>
         <li><b>双击屏幕任意位置</b>：播放 / 暂停，不用低头找底部按钮。</li>
+        <li>歌曲分散在多个文件夹时，点「只播本文件夹」，之后只在当前这首所在的文件夹里循环。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
       </ol>
       <p>歌词支持三种写法：中英同时间戳两行、同一行用 <code> / </code> 分隔、中文另起一行不带时间戳。</p>
@@ -500,8 +507,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.31.0';
-  var BUILD_AT = '2026-11-11 22:20';
+  var APP_VER = '1.32.0';
+  var BUILD_AT = '2026-11-11 22:35';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -513,14 +520,14 @@
     hud:$('hud'), sheet:$('sheet'), overlay:$('overlay'), listItems:$('listItems'),
     seek:$('seek'), tCur:$('tCur'), tDur:$('tDur'),
     btnPlay:$('btnPlay'), btnPrev:$('btnPrev'), btnNext:$('btnNext'),
-    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'),
+    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'), btnFolder:$('btnFolder'),
     btnAutoScan:$('btnAutoScan'),
     abInfo:$('abInfo'), help:$('help'), ovTitle:$('ovTitle')
   };
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, showZh: true, lineLoop: false, shuffle: false, theme: 'dark', autoScan: false,
+    speed: 1, showZh: true, lineLoop: false, shuffle: false, folderMode: false, theme: 'dark', autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -871,16 +878,18 @@
   function renderList(){
     els.listItems.innerHTML = '';
     if(!S.tracks.length){
-      var d = document.createElement('div');
-      d.className = 'li';
-      d.innerHTML = '<span class="nm" style="color:#5c6675">还没有歌曲</span>';
-      els.listItems.appendChild(d);
+      var d0 = document.createElement('div');
+      d0.className = 'li';
+      d0.innerHTML = '<span class="nm" style="color:#5c6675">还没有歌曲</span>';
+      els.listItems.appendChild(d0);
       return;
     }
-    S.tracks.forEach(function(tr, i){
+
+    function addItem(i, no){
+      var tr = S.tracks[i];
       var d = document.createElement('div');
       d.className = 'li' + (i === S.cur ? ' on' : '');
-      d.innerHTML = '<span class="no">'+(i+1)+'</span>' +
+      d.innerHTML = '<span class="no">' + no + '</span>' +
                     '<div class="nmwrap"><div class="nm"></div><div class="nmzh"></div></div>' +
                     ((tr.lines && tr.lines.length) || tr.lrcPath ? '' : '<span class="tag">无歌词</span>') +
                     '<button class="del" aria-label="移出歌单" title="移出歌单">×</button>';
@@ -892,6 +901,40 @@
         removeTrack(i);
       });
       els.listItems.appendChild(d);
+    }
+
+    // 按文件夹分组（仅 APK 且确实有多个目录时才分组，否则照旧平铺）
+    var groups = [], map = {};
+    if(NATIVE){
+      S.tracks.forEach(function(tr, i){
+        var d = trackDir(tr);
+        if(!map[d]){ map[d] = { dir: d, items: [] }; groups.push(map[d]); }
+        map[d].items.push(i);
+      });
+      groups.sort(function(a, b){ return a.dir.localeCompare(b.dir); });
+      // 正在播放的那个文件夹排最前，省得每次翻找
+      var cd = (S.cur >= 0) ? trackDir(S.tracks[S.cur]) : '';
+      if(cd){
+        var ci = -1;
+        for(var gi = 0; gi < groups.length; gi++){
+          if(groups[gi].dir === cd){ ci = gi; break; }
+        }
+        if(ci > 0) groups.unshift(groups.splice(ci, 1)[0]);
+      }
+    }
+
+    if(!NATIVE || groups.length < 2){
+      S.tracks.forEach(function(tr, i){ addItem(i, i + 1); });
+      return;
+    }
+
+    var curDir = (S.cur >= 0) ? trackDir(S.tracks[S.cur]) : '';
+    groups.forEach(function(g){
+      var h = document.createElement('div');
+      h.className = 'grp' + (g.dir === curDir ? ' on' : '');
+      h.textContent = shortDir(g.dir) + ' · ' + g.items.length + ' 首';
+      els.listItems.appendChild(h);
+      g.items.forEach(function(i, k){ addItem(i, k + 1); });
     });
   }
 
@@ -1593,30 +1636,61 @@
   /* 切歌：保持当前播放/暂停状态，且从头开始，不恢复上次进度 */
   var trackHist = [];   // 随机模式下播放过的曲目，供「上一首」回退
 
+  // 取某首歌所在的文件夹（APK 模式下才有意义）
+  function trackDir(tr){
+    var p = (tr && tr.url) ? tr.url.replace(/^file:\/\//, '') : '';
+    var i = p.lastIndexOf('/');
+    return (i > 0) ? p.substring(0, i) : '';
+  }
+
+  function shortDir(d){
+    return d ? d.replace(/^.*\//, '') : '未知文件夹';
+  }
+
+  // 开了「只播本文件夹」时，返回该文件夹内所有曲目的下标；否则返回 null（不限范围）
+  function scopeList(){
+    if(!S.folderMode || S.cur < 0 || !S.tracks[S.cur]) return null;
+    var d = trackDir(S.tracks[S.cur]);
+    if(!d) return null;
+    var out = [];
+    for(var i = 0; i < S.tracks.length; i++){
+      if(trackDir(S.tracks[i]) === d) out.push(i);
+    }
+    return out.length ? out : null;
+  }
+
   function pickNext(dir){
     var n = S.tracks.length;
     if(!n) return -1;
 
-    if(!S.shuffle){
-      var i = (S.cur < 0) ? 0 : S.cur + dir;
-      if(i < 0) i = n - 1;
-      if(i >= n) i = 0;
-      return i;
+    var pool = scopeList();
+    if(!pool){
+      pool = [];
+      for(var k = 0; k < n; k++) pool.push(k);
     }
 
-    // 随机模式：上一首优先按历史回退，别随机到原地
+    if(!S.shuffle){
+      var pos = pool.indexOf(S.cur);
+      if(pos < 0) return (dir > 0) ? pool[0] : pool[pool.length - 1];
+      var p = pos + dir;
+      if(p < 0) p = pool.length - 1;
+      if(p >= pool.length) p = 0;
+      return pool[p];
+    }
+
+    // 随机：上一首先按历史回退（且必须还在当前范围内）
     if(dir < 0 && trackHist.length){
-      var h = trackHist.pop();
-      if(h >= 0 && h < n && h !== S.cur) return h;
+      while(trackHist.length){
+        var h = trackHist.pop();
+        if(h !== S.cur && pool.indexOf(h) >= 0) return h;
+      }
     }
-    if(n === 1) return 0;
-    var idx = S.cur, guard = 0;
-    while(idx === S.cur && guard++ < 60){
-      idx = Math.floor(Math.random() * n);
-    }
-    if(idx === S.cur) idx = (S.cur + 1) % n;
+
+    var cand = pool.filter(function(i){ return i !== S.cur; });
+    if(!cand.length) return S.cur;
+    var pick = cand[Math.floor(Math.random() * cand.length)];
     if(dir > 0 && S.cur >= 0) trackHist.push(S.cur);
-    return idx;
+    return pick;
   }
 
   function stepTrack(dir){
@@ -1853,6 +1927,20 @@
     toast(autoIsLight() ? '自动：现在是日间模式' : '自动：现在是夜间模式');
   });
 
+  els.btnFolder.addEventListener('click', function(){
+    if(!NATIVE) return;
+    S.folderMode = !S.folderMode;
+    els.btnFolder.classList.toggle('on', S.folderMode);
+    save({ folderMode: S.folderMode });
+
+    if(!S.folderMode){ toast('已恢复：全部歌曲一起循环'); return; }
+    if(S.cur < 0){ toast('先播一首歌，就会只在它所在的文件夹里循环'); return; }
+
+    var d = trackDir(S.tracks[S.cur]);
+    var sc = scopeList();
+    toast('只在「' + shortDir(d) + '」循环' + (sc ? '（' + sc.length + ' 首）' : ''));
+  });
+
   els.btnShuffle.addEventListener('click', function(){
     S.shuffle = !S.shuffle;
     if(S.shuffle){
@@ -2045,6 +2133,8 @@
     S.shuffle = !!cfg.shuffle;
     els.btnZh.classList.toggle('on', S.showZh);
     els.btnShuffle.classList.toggle('on', S.shuffle);
+    S.folderMode = !!cfg.folderMode;
+    if(els.btnFolder) els.btnFolder.classList.toggle('on', S.folderMode);
     S.autoScan = !!cfg.autoScan;
     if(els.btnAutoScan) els.btnAutoScan.classList.toggle('on', S.autoScan);
     var qTheme = (location.search.match(/[?&]theme=(dark|light|auto)/) || [])[1];
