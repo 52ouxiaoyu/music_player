@@ -144,12 +144,17 @@
   #lyricInner.jump{transition:none;}
   .line{padding:.3em .5em;font-size:var(--ly);line-height:1.3;color:var(--lyric);text-align:center;
     border-radius:14px;transition:color .25s;cursor:pointer;}
-  .line .zh{display:block;font-size:.66em;line-height:1.4;color:var(--lyricZh);margin-top:.22em;
+  .line .zh{display:block;font-size:.76em;line-height:1.4;color:var(--lyricZh);margin-top:.26em;
     transition:color .25s;}
   .line.note{font-size:calc(var(--ly) * .55);color:var(--lyricZh);}
   .line.active{color:var(--lyricOn);font-weight:600;letter-spacing:.005em;}
   .line.active .zh{color:var(--lyricZhOn);font-weight:400;}
-  .hide-zh .zh{display:none;}
+  /* 三种显示模式：双语 / 仅英文 / 仅中文 */
+  body.lang-en .line .zh{display:none;}
+  body.lang-zh .line .en{display:none;}
+  body.lang-zh .line .zh{font-size:1em;margin-top:0;color:var(--lyric);font-weight:inherit;}
+  body.lang-zh .line.active .zh{color:var(--lyricOn);font-weight:600;}
+  body.lang-zh .line{line-height:1.32;}
 
   /* 暂停时屏幕正中的大播放键：半透明，点一下就播，播起来自动淡出 */
   #playFloat{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -362,7 +367,7 @@
     #lyricInner{ padding:0 20px; }
     #lyricView{ padding:0 0 130px; }
     .line{ padding:.3em .25em; line-height:1.32; }
-    .line .zh{ font-size:.72em; }
+    .line .zh{ font-size:.8em; }
     .hud-top{ padding:12px 14px; }
     .hud-bottom{ padding:20px 14px 22px; gap:12px; }
     .transport{ gap:8px; padding:2px 84px 4px 0; }
@@ -462,7 +467,7 @@
       <button class="chip" id="btnAllLoop">单曲循环</button>
       <button class="chip" id="btnShuffle">随机播放</button>
       <button class="chip" id="btnFolder">只播本文件夹</button>
-      <button class="chip on" id="btnZh">显示译文</button>
+      <button class="chip on" id="btnZh">双语</button>
     </div>
     <div class="row">
       <span class="lbl">主题</span>
@@ -536,8 +541,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.36.0';
-  var BUILD_AT = '2026-11-11 23:40';
+  var APP_VER = '1.37.0';
+  var BUILD_AT = '2026-11-11 23:55';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -556,7 +561,7 @@
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, showZh: true, lineLoop: false, shuffle: false, folderMode: false, theme: 'dark', autoScan: false,
+    speed: 1, lang: 'both', lineLoop: false, shuffle: false, folderMode: false, theme: 'dark', autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -1398,7 +1403,7 @@
   function bindLines(){
     els.inner.classList.add('jump');
     els.inner.innerHTML = '';
-    els.inner.classList.toggle('hide-zh', !S.showZh);
+    applyLang();
     if(!S.lines.length){
       var d = document.createElement('div');
       d.className = 'line note';
@@ -1418,6 +1423,7 @@
       var d = document.createElement('div');
       d.className = 'line';
       var en = document.createElement('span');
+      en.className = 'en';
       en.textContent = ln.text || '';
       d.appendChild(en);
       if(ln.zh){
@@ -1769,12 +1775,24 @@
     save({ speed: v });
   }
 
-  function setZh(on){
-    S.showZh = on;
-    els.btnZh.classList.toggle('on', on);
-    els.inner.classList.toggle('hide-zh', !on);
-    save({ showZh: on });
+  var LANG_ORDER = ['both', 'en', 'zh'];
+  var LANG_LABEL = { both: '双语', en: '仅英文', zh: '仅中文' };
+
+  function applyLang(){
+    var l = S.lang || 'both';
+    document.body.classList.toggle('lang-en', l === 'en');
+    document.body.classList.toggle('lang-zh', l === 'zh');
+    els.btnZh.textContent = LANG_LABEL[l];
+    els.btnZh.classList.toggle('on', l !== 'en');   // 只有"仅英文"时算关闭译文
+  }
+
+  function setLang(l, quiet){
+    S.lang = l;
+    applyLang();
+    save({ lang: l });
+    try{ els.inner.classList.remove('hide-zh'); }catch(e){}
     setTimeout(function(){ fitLines(); layout(); }, 30);
+    if(!quiet) toast(l === 'both' ? '中英双语' : (l === 'en' ? '只显示英文' : '只显示中文'));
   }
 
   function updateAB(){
@@ -1940,7 +1958,10 @@
   document.querySelectorAll('[data-speed]').forEach(function(b){
     b.addEventListener('click', function(){ setSpeed(parseFloat(b.getAttribute('data-speed'))); });
   });
-  els.btnZh.addEventListener('click', function(){ setZh(!S.showZh); });
+  els.btnZh.addEventListener('click', function(){
+    var i = LANG_ORDER.indexOf(S.lang);
+    setLang(LANG_ORDER[(i + 1) % LANG_ORDER.length]);
+  });
   els.btnLineLoop.addEventListener('click', function(){
     S.lineLoop = !S.lineLoop;
     els.btnLineLoop.classList.toggle('on', S.lineLoop);
@@ -2171,9 +2192,9 @@
     })();
 
     S.speed = typeof cfg.speed === 'number' ? cfg.speed : 1;
-    S.showZh = cfg.showZh !== false;
+    S.lang = cfg.lang || (cfg.showZh === false ? 'en' : 'both');
     S.shuffle = !!cfg.shuffle;
-    els.btnZh.classList.toggle('on', S.showZh);
+    applyLang();
     els.btnShuffle.classList.toggle('on', S.shuffle);
     S.folderMode = !!cfg.folderMode;
     if(els.btnFolder) els.btnFolder.classList.toggle('on', S.folderMode);
