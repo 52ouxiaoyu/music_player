@@ -31,7 +31,7 @@
     --lyric:#4d5665;
     --lyricZh:#39414d;
     --lyricOn:#ffffff;
-    --lyricZhOn:#7f8c9e;
+    --lyricZhOn:#d9e2ef;
     --title:#9aa6b6;
     --sub:#5f6a78;
     --btnBg:rgba(26,31,39,.9);
@@ -68,7 +68,7 @@
     --lyric:#6E757E;
     --lyricZh:#9BA1A9;
     --lyricOn:#0A0C0F;
-    --lyricZhOn:#4B535C;
+    --lyricZhOn:#252C36;
     --title:#2F353D;
     --sub:#6F767F;
     --btnBg:#FFFFFF;
@@ -148,7 +148,7 @@
     transition:color .25s;}
   .line.note{font-size:calc(var(--ly) * .55);color:var(--lyricZh);}
   .line.active{color:var(--lyricOn);font-weight:600;letter-spacing:.005em;}
-  .line.active .zh{color:var(--lyricZhOn);font-weight:400;}
+  .line.active .zh{color:var(--lyricZhOn);font-weight:600;}
   /* 三种显示模式：双语 / 仅英文 / 仅中文 */
   body.lang-en .line .zh{display:none;}
   body.lang-zh .line .en{display:none;}
@@ -549,8 +549,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.38.0';
-  var BUILD_AT = '2026-11-12 00:15';
+  var APP_VER = '1.38.1';
+  var BUILD_AT = '2026-11-12 00:30';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
