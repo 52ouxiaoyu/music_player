@@ -522,6 +522,7 @@
       <a class="chip" id="btnApk" href="apk/" target="_blank" rel="noopener">下载 APK</a>
       <button class="chip" id="btnAutoScan">启动时自动扫描</button>
       <button class="chip" id="btnClear">清空缓存</button>
+      <span id="verSheet" style="font-size:12px;color:var(--dim);align-self:center;margin-left:6px;"></span>
     </div>
   </div>
 </div>
@@ -556,6 +557,7 @@
         <p id="apkUrl" style="color:#3d4552;font-size:12px;word-break:break-all;"></p>
       </div>
 
+      <p id="verTop" style="color:#c99a4b;font-size:14px;font-weight:600;margin:0 0 8px;"></p>
       <p id="storeInfo" style="color:#4a5462;font-size:13px;"></p>
       <p id="scanInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
       <p id="diagInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
@@ -579,8 +581,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.40.6';
-  var BUILD_AT = '2026-11-13 14:40';
+  var APP_VER = '1.40.7';
+  var BUILD_AT = '2026-11-13 14:50';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1150,6 +1152,27 @@
   }
 
   /* ---------- APK 模式：直接读车机本地目录 ---------- */
+  function writeScanInfo(dropped){
+    try{
+      var extCnt = {}, sample = [];
+      S.tracks.forEach(function(t){
+        var pth = String(t.url || '').replace(/^file:\/\//, '');
+        var m = pth.match(/\.([a-z0-9]+)$/i);
+        var e = m ? m[1].toLowerCase() : '?';
+        extCnt[e] = (extCnt[e] || 0) + 1;
+      });
+      var extTxt = Object.keys(extCnt).map(function(k){ return k + '×' + extCnt[k]; }).join(' ');
+      S.tracks.slice(0, 3).forEach(function(t){
+        var nm = String(t.url || '').split('/').pop();
+        sample.push(nm + (t.lrcPath ? '（有词）' : '（无词）'));
+      });
+      var sx = $('scanInfo');
+      if(sx) sx.textContent = '扫描明细：共 ' + S.tracks.length + ' 首' +
+        (dropped ? '（已过滤视频 ' + dropped + ' 个）' : '') +
+        '｜扩展名 ' + (extTxt || '无') + '｜样例 ' + sample.join('、');
+    }catch(e){}
+  }
+
   function loadNative(){
     var arr = [], raw = '';
     try{ raw = NATIVE.listTracks() || '[]'; }catch(e){ raw = '[]'; }
@@ -1215,24 +1238,7 @@
     normalizeTitles();
     renderList();
 
-    // 扫描明细：扩展名分布 + 前几个样例，出问题时一眼看出多出来的是什么
-    try{
-      var extCnt = {}, sample = [];
-      S.tracks.forEach(function(t){
-        var pth = String(t.url || '').replace(/^file:\/\//, '');
-        var m = pth.match(/\.([a-z0-9]+)$/i);
-        var e = m ? m[1].toLowerCase() : '?';
-        extCnt[e] = (extCnt[e] || 0) + 1;
-      });
-      var extTxt = Object.keys(extCnt).map(function(k){ return k + '×' + extCnt[k]; }).join(' ');
-      S.tracks.slice(0, 3).forEach(function(t){
-        var nm = String(t.url || '').split('/').pop();
-        sample.push(nm + (t.lrcPath ? '（有词）' : '（无词）'));
-      });
-      var sx = $('scanInfo');
-      if(sx) sx.textContent = '扫描明细：共 ' + S.tracks.length + ' 首｜扩展名 ' + (extTxt || '无') +
-        '｜样例 ' + sample.join('、');
-    }catch(e){}
+    writeScanInfo(0);
 
     // 把诊断信息写进「说明」面板，方便出问题时一眼看到
     try{
@@ -1340,8 +1346,10 @@
 
     S.tracks = []; S.cur = -1; S.lines = []; S.lineIdx = -1;
     trackHist = [];
-    var withLrc = 0, missing = 0;
+    var withLrc = 0, missing = 0, dropped = 0;
     arr.forEach(function(it){
+      // 旧缓存里可能混进了视频文件，恢复时直接丢掉
+      if(/\.(mp4|m4v|webm|mov|mkv)$/i.test(String(it.p || ''))){ dropped++; return; }
       // 文件被删/被移动的就跳过，别让它在播放时报错
       if(NATIVE && NATIVE.exists && it.p && NATIVE.exists(it.p) === false){ missing++; return; }
       var tr = { name: it.n, url: 'file://' + it.p, lines: [], native: true,
@@ -1351,6 +1359,8 @@
       if(it.l) withLrc++;
       S.tracks.push(tr);
     });
+
+    if(dropped > 0) saveLib();     // 把干净后的列表写回，避免下次再冒出来
 
     if(!S.tracks.length){
       restoreLib._allMissing = (missing > 0);
@@ -1370,6 +1380,7 @@
     var si = $('storeInfo');
     if(si) si.textContent = '已记住 ' + S.tracks.length + ' 首，其中 ' + withLrc +
       ' 首带歌词；想刷新列表点「重新扫描」';
+    writeScanInfo(dropped);
     if(missing > 0){
       showNotice('有 ' + missing + ' 首歌的文件不在了，已跳过。点右边可重新扫描。',
                  '重新扫描', function(){ hideNotice(); runScan(); });
@@ -2422,6 +2433,8 @@
     var verTxt = 'v' + APP_VER + ' · ' + BUILD_AT;
     if($('verLine')) $('verLine').textContent = 'v' + APP_VER;
     if($('verInfo')) $('verInfo').textContent = '版本 ' + verTxt;
+    if($('verTop')) $('verTop').textContent = '丁丁音乐 ' + verTxt;
+    if($('verSheet')) $('verSheet').textContent = 'v' + APP_VER;
     try{ document.title = '丁丁音乐 v' + APP_VER; }catch(e){}
 
     // 说明里的 APK 地址：带上当前 sharecode，复制到别的设备也能直接打开
