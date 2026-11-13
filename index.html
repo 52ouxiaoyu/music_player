@@ -334,7 +334,9 @@
   .li .del:active{background:rgba(224,113,113,.16);color:#e07171;opacity:1;}
   .li .tag{font-size:12px;color:#c99a4b;}
 
-  #help .box{max-width:640px;margin:0 auto;overflow-y:auto;}
+  #help{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding-bottom:20px;}
+  #help .box{max-width:640px;margin:0 auto;}
   #help p,#help li{color:#a8b3c2;font-size:15px;line-height:1.8;}
   #help ol{padding-left:20px;margin:6px 0 14px;}
   #help code{background:#141a21;padding:2px 6px;border-radius:4px;color:#e0b34d;font-size:13px;}
@@ -532,6 +534,7 @@
   <div id="listItems"></div>
   <div id="help" style="display:none;">
     <div class="box">
+      <p id="verInfo" style="color:#6f7a89;font-size:13px;margin:0 0 10px;"></p>
       <ol>
         <li>把英文歌 <code>.mp3</code> 和同名歌词 <code>.lrc</code> 放进同一个文件夹（U 盘或车机内部存储都行）。</li>
         <li>网页版点「选歌」两者一起选中；APK 第一次点「扫描」，之后每次打开直接恢复歌单，不用再扫。</li>
@@ -558,7 +561,6 @@
       <p id="storeInfo" style="color:#4a5462;font-size:13px;"></p>
       <p id="scanInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
       <p id="diagInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
-      <p id="verInfo" style="color:#3d4552;font-size:12px;"></p>
       <p id="keyInfo" style="color:#3d4552;font-size:12px;"></p>
     </div>
   </div>
@@ -578,8 +580,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.40.8';
-  var BUILD_AT = '2026-11-13 15:00';
+  var APP_VER = '1.40.9';
+  var BUILD_AT = '2026-11-13 15:10';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
