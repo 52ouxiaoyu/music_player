@@ -577,8 +577,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.40.1';
-  var BUILD_AT = '2026-11-13 13:35';
+  var APP_VER = '1.40.2';
+  var BUILD_AT = '2026-11-13 13:50';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -691,9 +691,7 @@
       var m = /\[ti:([^\]]*)\]/i.exec(lrcText); if(m) ti = m[1].trim();
       m = /\[ar:([^\]]*)\]/i.exec(lrcText); if(m) ar = m[1].trim();
     }
-    var title = ti, artist = ar;
-
-    // 文件名里的「歌手 - 歌名」是最可靠的信息，先解析出来备用
+    // 文件名里的「歌手 - 歌名」是最可靠的信息
     var nm = tr.name || '', nmTitle = nm, nmArtist = '';
     if(nm.indexOf(' - ') > 0){
       var q = nm.split(' - ');
@@ -701,17 +699,15 @@
       nmTitle = q.slice(1).join(' - ').trim();
     }
 
-    // 有些 LRC 把歌手名写进 [ti:]，整张专辑所有歌都会变成同一个名字，这种要丢掉
-    if(title && (
-        (artist && title === artist) ||
-        (nmArtist && title === nmArtist) ||
-        title === shortDir(trackDir(tr))
-      )) title = '';
+    // 歌名一律以文件名为准：LRC 的 [ti:] 经常被写成歌手名（整张专辑同名），不可靠。
+    // 只有文件名本身没有有效名字时（纯数字、单字符）才退回 [ti:]。
+    var nameUsable = nmTitle && nmTitle.length > 1 && !/^\d+$/.test(nmTitle);
+    var title = nameUsable ? nmTitle : (ti || nmTitle);
+    var artist = nmArtist || '';
 
-    if(!title){
-      title = nmTitle;
-      if(!artist) artist = nmArtist;
-    }
+    // 退回 [ti:] 时仍然要防它其实是歌手名
+    if(!nameUsable && title && (title === ar || title === shortDir(trackDir(tr)))) title = nmTitle;
+    if(!artist) artist = ar && ar !== title ? ar : '';
     var st = splitTitle(title);
     tr.artist = artist || '';
     tr.title = st.en || tr.name;
