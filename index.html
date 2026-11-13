@@ -578,8 +578,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.40.4';
-  var BUILD_AT = '2026-11-13 14:15';
+  var APP_VER = '1.40.5';
+  var BUILD_AT = '2026-11-13 14:32';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -686,23 +686,54 @@
     return { en: ti.trim(), zh: '' };
   }
 
-  // 整库都叫同一个名字，几乎一定是 [ti:] 被批量写坏了 —— 全部退回文件名
-  function fixAllSameTitle(){
+  // [ar:] 可能写成「周杰伦 / Jay Chou」，用它判断文件名里哪一边是歌手
+  function normName(x){
+    return String(x || '').toLowerCase().replace(/[\s&、,，\/·.\-]/g, '');
+  }
+
+  function arMatches(part, ar){
+    var p = normName(part);
+    if(!p || !ar) return false;
+    var toks = String(ar).split(/[\/&、,]/);
+    for(var i = 0; i < toks.length; i++){
+      var t = normName(toks[i]);
+      if(!t) continue;
+      if(p === t || p.indexOf(t) >= 0 || t.indexOf(p) >= 0) return true;
+    }
+    var whole = normName(ar);
+    return !!whole && (whole.indexOf(p) >= 0 || p.indexOf(whole) >= 0);
+  }
+
+  // 批量纠偏：某个"歌名"反复出现在很多首歌里，它其实是歌手名（文件名写成「歌名 - 歌手」时）
+  function normalizeTitles(){
     var n = S.tracks.length;
     if(n < 3) return;
-    var first = S.tracks[0].title || '';
-    if(!first) return;
-    for(var i = 1; i < n; i++){
-      if((S.tracks[i].title || '') !== first) return;   // 不是全同名，不动
+
+    var cnt = {};
+    for(var i = 0; i < n; i++){
+      var t = S.tracks[i].title || '';
+      if(t) cnt[t] = (cnt[t] || 0) + 1;
     }
+    var hot = {};
+    for(var k in cnt){
+      if(cnt[k] >= 3 && cnt[k] * 4 >= n) hot[k] = 1;   // 出现≥3次且占比≥25%
+    }
+
     for(var j = 0; j < n; j++){
-      var tr = S.tracks[j], nm = tr.name || '';
-      tr.title = (nm.indexOf(' - ') > 0)
-        ? nm.split(' - ').slice(1).join(' - ').trim()
-        : nm;
+      var tr = S.tracks[j];
+      if(!tr.title || !hot[tr.title]) continue;
+      var nm = (tr.name || '').replace(/^\s*\d{1,3}[\s._\-]+/, '');
+      var parts = nm.split(' - ');
+      if(parts.length >= 2){
+        var last = parts[parts.length - 1].trim();
+        tr.title = (last === tr.title)
+          ? parts.slice(0, -1).join(' - ').trim()   // 末尾是歌手 → 去掉
+          : parts[0].trim();                        // 开头是歌手 → 去掉
+      }else{
+        tr.title = tr.name || tr.title;              // 拆不开就用原始文件名
+      }
       tr.titleZh = '';
     }
-    console.warn('检测到整库同名，已改回文件名显示');
   }
 
   function applyTrackMeta(tr, lrcText){
@@ -711,12 +742,18 @@
       var m = /\[ti:([^\]]*)\]/i.exec(lrcText); if(m) ti = m[1].trim();
       m = /\[ar:([^\]]*)\]/i.exec(lrcText); if(m) ar = m[1].trim();
     }
-    // 文件名里的「歌手 - 歌名」是最可靠的信息
-    var nm = tr.name || '', nmTitle = nm, nmArtist = '';
+    // 文件名：先去曲目号，再判断「歌名 - 歌手」还是「歌手 - 歌名」
+    var nm = (tr.name || '').replace(/^\s*\d{1,3}[\s._\-]+/, '');
+    var nmTitle = nm, nmArtist = '';
     if(nm.indexOf(' - ') > 0){
       var q = nm.split(' - ');
-      nmArtist = q[0].trim();
-      nmTitle = q.slice(1).join(' - ').trim();
+      var left = q[0].trim(), right = q.slice(1).join(' - ').trim();
+      if(ar && arMatches(right, ar)){ nmArtist = right; nmTitle = left; }        // 歌名 - 歌手
+      else if(ar && arMatches(left, ar)){ nmArtist = left; nmTitle = right; }    // 歌手 - 歌名
+      else if(left.indexOf(' ') < 0 && right.indexOf(' ') > 0){
+        nmArtist = right; nmTitle = left;                                          // 右侧像多人名，左侧是歌名
+      }
+      else { nmArtist = left; nmTitle = right; }                                  // 没有依据时按「歌手 - 歌名」
     }
 
     // 歌名一律以文件名为准：LRC 的 [ti:] 经常被写成歌手名（整张专辑同名），不可靠。
@@ -733,6 +770,14 @@
     tr.artist = artist || '';
     tr.title = st.en || tr.name;
     tr.titleZh = st.zh || zhTitleFor(st.en) || '';
+
+    // [ti:] 是中英双语时，用它补齐另一行（文件名只有中文名的情况）
+    if(ti && ti.indexOf(' / ') > 0){
+      var tp = ti.split(' / ');
+      var a = tp[0].trim(), b = tp.slice(1).join(' / ').trim();
+      if(!tr.titleZh && normName(a) === normName(tr.title)) tr.titleZh = b;
+      else if(!tr.titleZh && normName(b) === normName(tr.title)) tr.titleZh = a;
+    }
   }
 
   function showTitle(tr){
@@ -1161,7 +1206,7 @@
       S.tracks.push(tr);
     });
 
-    fixAllSameTitle();
+    normalizeTitles();
     renderList();
 
     // 把诊断信息写进「说明」面板，方便出问题时一眼看到
@@ -1287,7 +1332,7 @@
       restoreLib._missing = missing;
       return false;                     // 全没了，交给开始页
     }
-    fixAllSameTitle();
+    normalizeTitles();
     renderList();
     els.empty.classList.add('hidden');
 
