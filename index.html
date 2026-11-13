@@ -137,8 +137,21 @@
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",Roboto,"Helvetica Neue",Arial,sans-serif;
     overflow:hidden;overscroll-behavior:none;}
 
+  /* ---------- MV 视频层（在歌词之下） ---------- */
+  #audio{position:fixed;left:0;top:0;width:100%;height:100%;
+    object-fit:contain;background:#000;z-index:4;pointer-events:none;
+    opacity:0;}   /* 不加过渡：老 WebView 上视频层可能卡在半透明 */
+  body.has-video #audio{opacity:1;}
+  /* 视频上压一层暗幕，保证歌词在任何画面上都能读清 */
+  #vshade{position:fixed;left:0;top:0;right:0;bottom:0;z-index:5;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(0,0,0,.62) 0%,rgba(0,0,0,.34) 42%,rgba(0,0,0,.66) 100%);
+    opacity:0;}
+  body.has-video #vshade{opacity:1;}
+  body.has-video.lang-zh #vshade,
+  body.has-video.lang-en #vshade{opacity:1;}
+
   /* ---------- 歌词（唯一常驻内容） ---------- */
-  #lyricView{position:fixed;top:0;right:0;bottom:0;left:0;overflow:hidden;padding:0 0 110px;}
+  #lyricView{position:fixed;top:0;right:0;bottom:0;left:0;overflow:hidden;padding:0 0 110px;z-index:10;}
   #lyricInner{position:absolute;left:0;right:0;top:50%;padding:0 44px;
     transition:transform .42s cubic-bezier(.22,.61,.36,1);}
   #lyricInner.jump{transition:none;}
@@ -334,6 +347,7 @@
   body:not(.native) #btnScanEmpty{display:none;}
   body:not(.native) #btnAutoScan{display:none;}
   body:not(.native) #btnFolder{display:none;}
+  body:not(.native) #btnVideo{display:none;}
   body.native #btnDemo{display:none;}
 
   /* APK 模式下这些入口没有意义 */
@@ -477,6 +491,7 @@
       <button class="chip" id="btnShuffle">随机播放</button>
       <button class="chip" id="btnFolder">只播本文件夹</button>
       <button class="chip on" id="btnZh">双语</button>
+      <button class="chip on" id="btnVideo">显示 MV 画面</button>
     </div>
     <div class="row">
       <span class="lbl">主题</span>
@@ -526,6 +541,7 @@
         <li><b>双击屏幕任意位置</b>：播放 / 暂停，不用低头找底部按钮。</li>
         <li>歌曲分散在多个文件夹时，点「只播本文件夹」，之后只在当前这首所在的文件夹里循环。</li>
         <li>歌词和声音对不上时，抽屉里「同步」点「歌词太早 / 歌词太晚」，每次 0.5 秒，每首歌单独记住。</li>
+        <li>想看 MV：把同名 MP4 和歌曲放在一起（Love Story.mp3 + Love Story.mp4），有视频就播画面、歌词盖在上面；不想看画面点「显示 MV 画面」关掉。</li>
         <li>5 秒不碰屏幕，界面只剩歌词；碰一下屏幕控制条回来。</li>
       </ol>
       <p>歌词支持三种写法：中英同时间戳两行、同一行用 <code> / </code> 分隔、中文另起一行不带时间戳。</p>
@@ -548,7 +564,9 @@
 </div>
 
 <input type="file" id="fileInput" multiple accept="audio/*,.lrc,.txt,.mp3,.m4a,.aac,.wav,.flac,.ogg" style="display:none">
-<audio id="audio" preload="metadata"></audio>
+<video id="audio" preload="metadata" playsinline webkit-playsinline
+       disablepictureinpicture></video>
+<div id="vshade"></div>
 <div id="toast"></div>
 <div id="notice"><span class="nTxt" id="noticeTxt"></span><button id="noticeAct" style="display:none"></button></div>
 
@@ -558,8 +576,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.39.1';
-  var BUILD_AT = '2026-11-12 06:55';
+  var APP_VER = '1.40.0';
+  var BUILD_AT = '2026-11-13 12:45';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -571,14 +589,14 @@
     hud:$('hud'), sheet:$('sheet'), overlay:$('overlay'), listItems:$('listItems'),
     seek:$('seek'), tCur:$('tCur'), tDur:$('tDur'),
     btnPlay:$('btnPlay'), btnPrev:$('btnPrev'), btnNext:$('btnNext'),
-    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'), btnFolder:$('btnFolder'),
+    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'), btnFolder:$('btnFolder'), btnVideo:$('btnVideo'),
     btnAutoScan:$('btnAutoScan'),
     abInfo:$('abInfo'), help:$('help'), ovTitle:$('ovTitle')
   };
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, lang: 'both', lineLoop: false, off: 0, shuffle: false, folderMode: false, theme: 'dark', autoScan: false,
+    speed: 1, lang: 'both', lineLoop: false, off: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -1098,7 +1116,8 @@
     var withLrc = 0;
     arr.forEach(function(it){
       var tr = { name: it.name, url: 'file://' + it.path, lines: [], native: true,
-                 lrcPath: it.lrcPath || '', size: it.size || 0 };
+                 lrcPath: it.lrcPath || '', size: it.size || 0,
+                 video: it.video ? ('file://' + it.video) : '' };
       var txt = '';
       if(it.lrcPath){
         try{ txt = NATIVE.readText(it.lrcPath) || ''; }catch(e){ txt = ''; }
@@ -1192,7 +1211,8 @@
     try{
       var arr = S.tracks.map(function(t){
         return { n:t.name, p:t.native ? (t.url || '').replace(/^file:\/\//,'') : '',
-                 l:t.lrcPath || '', s:t.size || 0 };
+                 l:t.lrcPath || '', s:t.size || 0,
+                 v:t.video ? t.video.replace(/^file:\/\//,'') : '' };
       });
       if(NATIVE && NATIVE.saveLib){
         NATIVE.saveLib(JSON.stringify(arr));   // APK：写应用私有目录，最稳
@@ -1221,7 +1241,8 @@
       // 文件被删/被移动的就跳过，别让它在播放时报错
       if(NATIVE && NATIVE.exists && it.p && NATIVE.exists(it.p) === false){ missing++; return; }
       var tr = { name: it.n, url: 'file://' + it.p, lines: [], native: true,
-                 lrcPath: it.l || '', size: it.s || 0 };
+                 lrcPath: it.l || '', size: it.s || 0,
+                 video: it.v ? ('file://' + it.v) : '' };
       applyTrackMeta(tr, '');
       if(it.l) withLrc++;
       S.tracks.push(tr);
@@ -1348,7 +1369,10 @@
     }
     S.off = Number(load()['off.' + tr.name]) || 0;
     updateOffInfo();
-    audio.src = tr.url;
+    // 有同名 MV 就用视频（音轨也来自视频），否则还是播音频文件
+    var useVid = !!tr.video;
+    audio.src = useVid ? tr.video : tr.url;
+    document.body.classList.toggle('has-video', useVid && S.showVideo);
     showTitle(tr);
 
     S.lines = tr.lines;
@@ -2016,6 +2040,15 @@
   document.querySelectorAll('[data-speed]').forEach(function(b){
     b.addEventListener('click', function(){ setSpeed(parseFloat(b.getAttribute('data-speed'))); });
   });
+  els.btnVideo.addEventListener('click', function(){
+    S.showVideo = !S.showVideo;
+    els.btnVideo.classList.toggle('on', S.showVideo);
+    save({ showVideo: S.showVideo });
+    var tr = (S.cur >= 0) ? S.tracks[S.cur] : null;
+    document.body.classList.toggle('has-video', !!(tr && tr.video) && S.showVideo);
+    toast(S.showVideo ? '有同名 MV 就显示画面' : '只显示歌词');
+  });
+
   $('btnOffEarly').addEventListener('click', function(){ setOff((S.off || 0) + 0.5); });
   $('btnOffLate').addEventListener('click', function(){ setOff((S.off || 0) - 0.5); });
   $('btnOffReset').addEventListener('click', function(){ setOff(0); });
@@ -2258,6 +2291,8 @@
     S.shuffle = !!cfg.shuffle;
     applyLang();
     els.btnShuffle.classList.toggle('on', S.shuffle);
+    S.showVideo = cfg.showVideo !== false;
+    if(els.btnVideo) els.btnVideo.classList.toggle('on', S.showVideo);
     S.folderMode = !!cfg.folderMode;
     if(els.btnFolder) els.btnFolder.classList.toggle('on', S.folderMode);
     S.autoScan = !!cfg.autoScan;
