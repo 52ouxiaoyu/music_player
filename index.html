@@ -557,6 +557,7 @@
       </div>
 
       <p id="storeInfo" style="color:#4a5462;font-size:13px;"></p>
+      <p id="scanInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
       <p id="diagInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
       <p id="verInfo" style="color:#3d4552;font-size:12px;"></p>
       <p id="keyInfo" style="color:#3d4552;font-size:12px;"></p>
@@ -578,8 +579,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.40.5';
-  var BUILD_AT = '2026-11-13 14:32';
+  var APP_VER = '1.40.6';
+  var BUILD_AT = '2026-11-13 14:40';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1176,6 +1177,11 @@
       return true;
     });
 
+    // 兜底：视频文件（.mp4/.m4v/.webm）绝不能当歌，否则播不出来只会报格式不支持
+    arr = arr.filter(function(it){
+      return !/\.(mp4|m4v|webm|mov|mkv)$/i.test(String(it.path || ''));
+    });
+
     // 统计来源目录，方便看清"多出来的"是怎么来的
     var byDir = {}, dirOrder = [];
     arr.forEach(function(it){
@@ -1208,6 +1214,25 @@
 
     normalizeTitles();
     renderList();
+
+    // 扫描明细：扩展名分布 + 前几个样例，出问题时一眼看出多出来的是什么
+    try{
+      var extCnt = {}, sample = [];
+      S.tracks.forEach(function(t){
+        var pth = String(t.url || '').replace(/^file:\/\//, '');
+        var m = pth.match(/\.([a-z0-9]+)$/i);
+        var e = m ? m[1].toLowerCase() : '?';
+        extCnt[e] = (extCnt[e] || 0) + 1;
+      });
+      var extTxt = Object.keys(extCnt).map(function(k){ return k + '×' + extCnt[k]; }).join(' ');
+      S.tracks.slice(0, 3).forEach(function(t){
+        var nm = String(t.url || '').split('/').pop();
+        sample.push(nm + (t.lrcPath ? '（有词）' : '（无词）'));
+      });
+      var sx = $('scanInfo');
+      if(sx) sx.textContent = '扫描明细：共 ' + S.tracks.length + ' 首｜扩展名 ' + (extTxt || '无') +
+        '｜样例 ' + sample.join('、');
+    }catch(e){}
 
     // 把诊断信息写进「说明」面板，方便出问题时一眼看到
     try{
