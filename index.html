@@ -144,9 +144,12 @@
   body.has-video #vidB{opacity:1;}
   /* 视频上压一层暗幕，保证歌词在任何画面上都能读清 */
   #vshade{position:fixed;left:0;top:0;right:0;bottom:0;z-index:5;pointer-events:none;
-    background:linear-gradient(to bottom,rgba(0,0,0,.62) 0%,rgba(0,0,0,.34) 42%,rgba(0,0,0,.66) 100%);
+    background:linear-gradient(to bottom,rgba(0,0,0,.42) 0%,rgba(0,0,0,.10) 45%,rgba(0,0,0,.52) 100%);
     opacity:0;}
   body.has-video #vshade{opacity:1;}
+  /* MV：只留当前句附近三行，其余隐藏但保留占位，避免当前句位置跳动 */
+  body.has-video .line.far{visibility:hidden;}
+  body.has-video .line{text-shadow:0 2px 10px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.9);}
   body.has-video.lang-zh #vshade,
   body.has-video.lang-en #vshade{opacity:1;}
 
@@ -580,8 +583,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.41.0';
-  var BUILD_AT = '2026-11-13 15:20';
+  var APP_VER = '1.41.1';
+  var BUILD_AT = '2026-11-13 19:55';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1517,6 +1520,7 @@
     }
     audio.src = useVid ? tr.video : tr.url;
     document.body.classList.toggle('has-video', useVid && S.showVideo);
+    applyVideoWindow();
     showTitle(tr);
 
     S.lines = tr.lines;
@@ -1745,6 +1749,16 @@
       (shift - (active.offsetTop + active.offsetHeight/2)) + 'px)';
   }
 
+  // 播 MV 时屏幕上只留当前句和前后各一句，别把画面糊死
+  function applyVideoWindow(){
+    var nodes = els.inner.children;
+    var on = document.body.classList.contains('has-video');
+    for(var k = 0; k < nodes.length; k++){
+      if(!on || S.lineIdx < 0){ nodes[k].classList.remove('far'); continue; }
+      nodes[k].classList.toggle('far', Math.abs(k - S.lineIdx) > 1);
+    }
+  }
+
   function setActive(i){
     if(i === S.lineIdx) return;
     var nodes = els.inner.children;
@@ -1754,6 +1768,7 @@
       nodes[i].classList.add('active');
       layout();
     }
+    applyVideoWindow();
   }
 
   // 歌词偏移（秒）：正数表示歌词整体往后推（解决"歌词比声音早"）
@@ -2225,6 +2240,7 @@
     save({ showVideo: S.showVideo });
     var tr = (S.cur >= 0) ? S.tracks[S.cur] : null;
     document.body.classList.toggle('has-video', !!(tr && tr.video) && S.showVideo);
+    applyVideoWindow();
     toast(S.showVideo ? '有同名 MV 就显示画面' : '只显示歌词');
   });
 
