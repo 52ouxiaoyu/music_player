@@ -577,8 +577,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.40.2';
-  var BUILD_AT = '2026-11-13 13:50';
+  var APP_VER = '1.40.3';
+  var BUILD_AT = '2026-11-13 14:00';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -683,6 +683,25 @@
       return hasCJK(p[0]) ? { en:p[1].trim(), zh:p[0].trim() } : { en:p[0].trim(), zh:p[1].trim() };
     }
     return { en: ti.trim(), zh: '' };
+  }
+
+  // 整库都叫同一个名字，几乎一定是 [ti:] 被批量写坏了 —— 全部退回文件名
+  function fixAllSameTitle(){
+    var n = S.tracks.length;
+    if(n < 3) return;
+    var first = S.tracks[0].title || '';
+    if(!first) return;
+    for(var i = 1; i < n; i++){
+      if((S.tracks[i].title || '') !== first) return;   // 不是全同名，不动
+    }
+    for(var j = 0; j < n; j++){
+      var tr = S.tracks[j], nm = tr.name || '';
+      tr.title = (nm.indexOf(' - ') > 0)
+        ? nm.split(' - ').slice(1).join(' - ').trim()
+        : nm;
+      tr.titleZh = '';
+    }
+    console.warn('检测到整库同名，已改回文件名显示');
   }
 
   function applyTrackMeta(tr, lrcText){
@@ -1140,6 +1159,7 @@
       S.tracks.push(tr);
     });
 
+    fixAllSameTitle();
     renderList();
 
     // 把诊断信息写进「说明」面板，方便出问题时一眼看到
@@ -1265,6 +1285,7 @@
       restoreLib._missing = missing;
       return false;                     // 全没了，交给开始页
     }
+    fixAllSameTitle();
     renderList();
     els.empty.classList.add('hidden');
 
