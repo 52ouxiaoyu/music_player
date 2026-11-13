@@ -588,8 +588,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.41.2';
-  var BUILD_AT = '2026-11-13 20:05';
+  var APP_VER = '1.41.3';
+  var BUILD_AT = '2026-11-13 20:10';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1525,6 +1525,7 @@
     }
     audio.src = useVid ? tr.video : tr.url;
     document.body.classList.toggle('has-video', useVid && S.showVideo);
+    S.lineIdx = -1;
     applyVideoWindow();
     showTitle(tr);
 
@@ -1723,9 +1724,10 @@
     setTimeout(layout, 150);
   }
   function finishBind(){
+    applyVideoWindow();
     relayout();
     setTimeout(function(){ fitLines(); relayout(); }, 60);
-    setTimeout(function(){ fitLines(); relayout(); els.inner.classList.remove('jump'); }, 320);
+    setTimeout(function(){ fitLines(); relayout(); applyVideoWindow(); els.inner.classList.remove('jump'); }, 320);
     setTimeout(function(){ fitLines(); relayout(); }, 900);
   }
 
@@ -1760,9 +1762,14 @@
   function applyVideoWindow(){
     var nodes = els.inner.children;
     var on = document.body.classList.contains('has-video');
+    if(!on){
+      for(var i = 0; i < nodes.length; i++) nodes[i].classList.remove('far');
+      return;
+    }
+    // 还没开始唱（lineIdx = -1）时按第一句算，开头也只露两行
+    var cur = (S.lineIdx >= 0) ? S.lineIdx : 0;
     for(var k = 0; k < nodes.length; k++){
-      if(!on || S.lineIdx < 0){ nodes[k].classList.remove('far'); continue; }
-      nodes[k].classList.toggle('far', k !== S.lineIdx && k !== S.lineIdx + 1);
+      nodes[k].classList.toggle('far', k !== cur && k !== cur + 1);
     }
   }
 
