@@ -588,8 +588,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.41.4';
-  var BUILD_AT = '2026-11-13 20:20';
+  var APP_VER = '1.41.5';
+  var BUILD_AT = '2026-11-14 08:25';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1527,6 +1527,24 @@
     document.body.classList.toggle('has-video', useVid && S.showVideo);
     S.lineIdx = -1;
     applyVideoWindow();
+
+    // MV 还没播放时先把首帧解出来当封面，避免一片黑
+    if(useVid){
+      vidB.preload = 'auto';
+      var paintFirst = function(){
+        try{
+          if(vidB.readyState >= 1 && vidB.currentTime < 0.05) vidB.currentTime = 0.08;
+        }catch(e){}
+      };
+      vidB.addEventListener('loadeddata', function once(){
+        vidB.removeEventListener('loadeddata', once);
+        paintFirst();
+      });
+      vidB.addEventListener('loadedmetadata', function once2(){
+        vidB.removeEventListener('loadedmetadata', once2);
+        setTimeout(paintFirst, 60);
+      });
+    }
     showTitle(tr);
 
     S.lines = tr.lines;
