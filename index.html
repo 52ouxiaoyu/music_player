@@ -305,6 +305,16 @@
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
     text-decoration:none;white-space:nowrap;}
   .chip.on{background:rgba(56,217,190,.16);border-color:var(--accent);color:var(--accent);}
+  /* 字号滑块 */
+  .rng{-webkit-appearance:none;appearance:none;flex:1;min-width:150px;height:48px;
+    background:transparent;margin:0 4px;cursor:pointer;}
+  .rng::-webkit-slider-runnable-track{height:6px;border-radius:999px;background:var(--line);}
+  .rng::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:28px;height:28px;border-radius:50%;background:var(--accent);
+    border:none;margin-top:-11px;box-shadow:0 2px 6px rgba(0,0,0,.35);}
+  .rng::-moz-range-track{height:6px;border-radius:999px;background:var(--line);}
+  .rng::-moz-range-thumb{width:28px;height:28px;border:none;border-radius:50%;background:var(--accent);}
+  #sizeInfo{min-width:76px;text-align:center;font-size:14px;color:var(--dim2);}
   .chip:active{background:#242b35;}
   .chip:disabled{opacity:.35;}
   #abInfo{font-size:14px;color:var(--dim);}
@@ -504,6 +514,12 @@
       <button class="chip" data-speed="1.3">1.3</button>
     </div>
     <div class="row">
+      <span class="lbl">字号</span>
+      <input class="rng" id="rngSize" type="range" min="28" max="96" step="1" value="50">
+      <span id="sizeInfo">自动</span>
+      <button class="chip on" id="btnSizeAuto">自动</button>
+    </div>
+    <div class="row">
       <span class="lbl">语言</span>
       <button class="chip on" id="btnZh">双语</button>
     </div>
@@ -618,8 +634,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.43.4';
-  var BUILD_AT = '2026-11-17 08:05';
+  var APP_VER = '1.43.5';
+  var BUILD_AT = '2026-11-17 08:30';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -632,14 +648,14 @@
     hud:$('hud'), sheet:$('sheet'), overlay:$('overlay'), listItems:$('listItems'),
     seek:$('seek'), tCur:$('tCur'), tDur:$('tDur'),
     btnPlay:$('btnPlay'), btnPrev:$('btnPrev'), btnNext:$('btnNext'),
-    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'), btnFolder:$('btnFolder'), btnVideo:$('btnVideo'), btnLineWin:$('btnLineWin'),
+    btnZh:$('btnZh'), btnLineLoop:$('btnLineLoop'), btnAllLoop:$('btnAllLoop'), btnShuffle:$('btnShuffle'), btnFolder:$('btnFolder'), btnVideo:$('btnVideo'), btnLineWin:$('btnLineWin'), rngSize:$('rngSize'), sizeInfo:$('sizeInfo'), btnSizeAuto:$('btnSizeAuto'),
     btnAutoScan:$('btnAutoScan'),
     abInfo:$('abInfo'), help:$('help'), ovTitle:$('ovTitle')
   };
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    artistSet: {}, speed: 1, lang: 'both', lineLoop: false, off: 0, intro: 0, autoIntro: false, autoStart: 0, pendingSkip: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, lineWin: true, autoScan: false,
+    artistSet: {}, speed: 1, lang: 'both', lineLoop: false, off: 0, intro: 0, autoIntro: false, autoStart: 0, pendingSkip: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, lineWin: true, lySize: 0, _autoSize: 0, autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -1922,6 +1938,13 @@
       size = Math.max(24, Math.floor(size * 0.94));
     }
 
+    // 自动算出来的值留给滑块参考；用户拖过滑块就以他的为准
+    S._autoSize = size;
+    if(S.lySize > 0){
+      size = Math.max(20, Math.round(S.lySize * (isMv ? 0.8 : 1)));
+    }
+    updateSizeUI();
+
     for(i=0;i<list.length;i++) list[i].style.fontSize = size + 'px';
 
     // 折行对齐：这一句一行放不下，就从中间断开
@@ -1951,7 +1974,9 @@
     }
 
     // 真量一次当前窗口：估算偏小（中文也折行）时再收一档
+    // （手动拖过字号的话不做这个纠正，否则用户拖了没反应）
     try{
+      if(S.lySize > 0) throw 0;
       var c0 = (S.lineIdx >= 0) ? S.lineIdx : 0;
       var cnt2 = isMv ? 2 : 3;
       var first = Math.max(0, c0 - 1), last = Math.min(list.length - 1, c0 + 1);
@@ -2445,6 +2470,17 @@
   function justWoke(){ return Date.now() - wokeAt < 500; }
 
   /* ---------- 抽屉 / 浮层 ---------- */
+  function updateSizeUI(){
+    if(!els.rngSize) return;
+    var auto = S._autoSize || 50;
+    var cur = (S.lySize > 0) ? S.lySize : auto;
+    els.rngSize.value = Math.max(28, Math.min(96, cur));
+    if(els.sizeInfo){
+      els.sizeInfo.textContent = cur + 'px';
+    }
+    if(els.btnSizeAuto) els.btnSizeAuto.classList.toggle('on', !(S.lySize > 0));
+  }
+
   function openSheet(open){
     els.sheet.classList.toggle('open', !!open);
     if(open){ showHud(); } else { armIdle(); }
@@ -2627,6 +2663,30 @@
     els.seek.style.setProperty('--grad',
       'linear-gradient(to right,var(--accent) 0%,var(--accent) ' + pct +
       ',var(--trackEmpty) ' + pct + ',var(--trackEmpty) 100%)');
+  }
+
+  var sizeT = 0;
+  if(els.rngSize){
+    els.rngSize.addEventListener('input', function(){
+      S.lySize = parseInt(this.value, 10) || 0;
+      if(els.sizeInfo) els.sizeInfo.textContent = S.lySize + 'px';
+      if(els.btnSizeAuto) els.btnSizeAuto.classList.remove('on');
+      save({ lySize: S.lySize });
+      clearTimeout(sizeT);
+      sizeT = setTimeout(function(){ fitLines(); layout(); }, 80);
+    });
+    els.rngSize.addEventListener('change', function(){
+      clearTimeout(sizeT);
+      fitLines(); layout();
+    });
+  }
+  if(els.btnSizeAuto){
+    els.btnSizeAuto.addEventListener('click', function(){
+      S.lySize = 0;
+      save({ lySize: 0 });
+      fitLines(); layout(); updateSizeUI();
+      toast('字号跟随屏幕自动适配');
+    });
   }
 
   document.querySelectorAll('[data-speed]').forEach(function(b){
@@ -2924,6 +2984,7 @@
     els.btnShuffle.classList.toggle('on', S.shuffle);
     S.showVideo = cfg.showVideo !== false;
     S.lineWin = cfg.lineWin !== false;
+    S.lySize = Number(cfg.lySize) || 0;
     if(els.btnLineWin) els.btnLineWin.classList.toggle('on', S.lineWin);
     S.autoIntro = !!cfg.autoIntro;
     if($('btnIntroAuto')) $('btnIntroAuto').classList.toggle('on', S.autoIntro);
