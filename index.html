@@ -17,75 +17,75 @@
 <title>丁丁音乐</title>
 <style>
   :root{
-    --bg:#07080a;
-    --hud:#101318;
-    --hud2:#1a1f27;
-    --line:#242a33;
-    --text:#eef2f7;
-    --dim:#5c6675;
-    --dim2:#8a94a3;
-    --accent:#3ea6ff;
+    --bg:#0d141b;
+    --hud:#131c25;
+    --hud2:#1b2632;
+    --line:#24323f;
+    --text:#e9f1f8;
+    --dim:#8c9cae;
+    --dim2:#b9c7d4;
+    --accent:#38d9be;
     --ly:26px;
 
     /* 主题相关 */
-    --lyric:#4d5665;
-    --lyricZh:#39414d;
+    --lyric:#94a7b9;
+    --lyricZh:#7c8fa1;
     --lyricOn:#ffffff;
-    --lyricZhOn:#d9e2ef;
-    --title:#9aa6b6;
-    --sub:#5f6a78;
-    --btnBg:rgba(26,31,39,.9);
-    --btnTxt:#cfd8e5;
-    --btnActive:#242b35;
-    --btnNavBg:rgba(20,24,30,.85);
-    --btnNavTxt:#7d8899;
-    --grab:#333c48;
-    --trackEmpty:#2b333e;
+    --lyricZhOn:#dceaf6;
+    --title:#a8b8c8;
+    --sub:#7e8fa0;
+    --btnBg:rgba(27,38,50,.92);
+    --btnTxt:#d7e4f0;
+    --btnActive:#26343f;
+    --btnNavBg:rgba(20,29,38,.86);
+    --btnNavTxt:#8fa1b2;
+    --grab:#34434f;
+    --trackEmpty:#2b3946;
     --thumb:#ffffff;
-    --overlayBg:rgba(6,7,9,.99);
-    --toastBg:rgba(18,23,30,.96);
-    --toastTxt:#cfd8e5;
-    --hudGrad:linear-gradient(to top,rgba(7,8,10,1) 0%,rgba(7,8,10,1) 70%,rgba(7,8,10,.86) 86%,rgba(7,8,10,0) 100%);
-    --floatC1:rgba(7,9,13,.80);
-    --floatC2:rgba(7,9,13,.62);
-    --floatTxt:rgba(238,244,251,.66);
-    --playTxt:#04121f;
+    --overlayBg:rgba(11,17,23,.99);
+    --toastBg:rgba(24,34,44,.96);
+    --toastTxt:#d7e4f0;
+    --hudGrad:linear-gradient(to top,rgba(13,20,27,1) 0%,rgba(13,20,27,1) 70%,rgba(13,20,27,.86) 86%,rgba(13,20,27,0) 100%);
+    --floatC1:rgba(13,20,27,.80);
+    --floatC2:rgba(13,20,27,.62);
+    --floatTxt:rgba(233,241,248,.7);
+    --playTxt:#04201b;
     --panelW:400px;
   }
   @media (max-width:700px){ :root{ --panelW:92vw; } }
 
   /* 日间主题：干净白底 + 高对比深字（之前的米黄底 + 灰字会糊成一片"灰蒙蒙"） */
   html.light{
-    --bg:#FAFAF9;
+    --bg:#f6faf9;
     --hud:#FFFFFF;
     --hud2:#FFFFFF;
-    --line:#E7E7E3;
-    --text:#14171A;
-    --dim:#6F767F;
-    --dim2:#4A515A;
-    --accent:#0F6FE0;
+    --line:#dfeae7;
+    --text:#16232b;
+    --dim:#6b7c88;
+    --dim2:#46555f;
+    --accent:#0e9f8e;
 
-    --lyric:#6E757E;
-    --lyricZh:#9BA1A9;
-    --lyricOn:#0A0C0F;
-    --lyricZhOn:#252C36;
-    --title:#2F353D;
-    --sub:#6F767F;
+    --lyric:#6c7d89;
+    --lyricZh:#97a6af;
+    --lyricOn:#0b1a22;
+    --lyricZhOn:#22303a;
+    --title:#2b3a44;
+    --sub:#6b7c88;
     --btnBg:#FFFFFF;
-    --btnTxt:#2A3138;
-    --btnActive:#EDEDE9;
+    --btnTxt:#24323c;
+    --btnActive:#e8f1ee;
     --btnNavBg:rgba(255,255,255,.88);
-    --btnNavTxt:#8E959E;
-    --grab:#DCDCD7;
-    --trackEmpty:#E4E4DF;
+    --btnNavTxt:#8a9aa4;
+    --grab:#d6e4e0;
+    --trackEmpty:#e2edea;
     --thumb:#FFFFFF;
-    --overlayBg:rgba(252,252,251,.99);
-    --toastBg:rgba(22,25,30,.94);
+    --overlayBg:rgba(250,253,252,.99);
+    --toastBg:rgba(20,32,38,.94);
     --toastTxt:#F5F7FA;
-    --hudGrad:linear-gradient(to top,#FAFAF9 0%,#FAFAF9 70%,rgba(250,250,249,.86) 86%,rgba(250,250,249,0) 100%);
-    --floatC1:rgba(250,250,249,.92);
-    --floatC2:rgba(250,250,249,.70);
-    --floatTxt:rgba(24,29,36,.50);
+    --hudGrad:linear-gradient(to top,#f6faf9 0%,#f6faf9 70%,rgba(246,250,249,.86) 86%,rgba(246,250,249,0) 100%);
+    --floatC1:rgba(246,250,249,.92);
+    --floatC2:rgba(246,250,249,.7);
+    --floatTxt:rgba(22,35,43,.55);
     --playTxt:#FFFFFF;
   }
   /* 日间下给控件一点极浅投影，避免白色按钮贴在白底上"发灰" */
@@ -142,6 +142,16 @@
     object-fit:contain;background:#000;z-index:4;pointer-events:none;
     opacity:0;}   /* 不加过渡：老 WebView 上视频层可能卡在半透明 */
   body.has-video #vidB{opacity:1;}
+
+  /* 播 MV 时强制浅色文字与深色控制条：日间主题下也不会出现"黑字糊在暗画面上" */
+  body.has-video{
+    --lyric:#e6f0f9; --lyricZh:#cfe1f0; --lyricOn:#ffffff; --lyricZhOn:#f4faff;
+    --hudGrad:linear-gradient(to top,rgba(6,10,14,.96) 0%,rgba(6,10,14,.88) 70%,rgba(6,10,14,.45) 86%,rgba(6,10,14,0) 100%);
+    --btnBg:rgba(16,24,32,.82); --btnTxt:#e6f0f9; --btnActive:rgba(255,255,255,.16);
+    --btnNavBg:rgba(16,24,32,.78); --btnNavTxt:#c7d6e3;
+    --trackEmpty:rgba(255,255,255,.26); --grab:rgba(255,255,255,.34);
+    --title:#e9f2fa; --sub:#c3d2e0; --playTxt:#04201b;
+  }
   /* 视频上压一层暗幕，保证歌词在任何画面上都能读清 */
   #vshade{position:fixed;left:0;top:0;right:0;bottom:0;z-index:5;pointer-events:none;
     background:linear-gradient(to bottom,rgba(0,0,0,.42) 0%,rgba(0,0,0,.10) 45%,rgba(0,0,0,.52) 100%);
@@ -288,7 +298,7 @@
     background:var(--hud2);color:var(--dim2);font-size:16px;cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
     text-decoration:none;white-space:nowrap;}
-  .chip.on{background:rgba(62,166,255,.16);border-color:var(--accent);color:var(--accent);}
+  .chip.on{background:rgba(56,217,190,.16);border-color:var(--accent);color:var(--accent);}
   .chip:active{background:#242b35;}
   .chip:disabled{opacity:.35;}
   #abInfo{font-size:13px;color:var(--dim);}
@@ -328,7 +338,7 @@
   .li{display:flex;align-items:center;gap:10px;padding:6px 14px;
     background:transparent;border:none;font-size:16px;line-height:1.3;cursor:pointer;}
   .li + .li{border-top:1px solid rgba(127,140,158,.10);}
-  .li.on{background:rgba(62,166,255,.10);}
+  .li.on{background:rgba(56,217,190,.13);}
   .li .no{color:var(--dim);font-size:13px;min-width:24px;font-variant-numeric:tabular-nums;}
   .li .nmwrap{flex:1;min-width:0;}
   .li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -597,8 +607,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.41.7';
-  var BUILD_AT = '2026-11-16 10:25';
+  var APP_VER = '1.42.0';
+  var BUILD_AT = '2026-11-16 11:20';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
