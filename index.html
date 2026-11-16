@@ -61,16 +61,16 @@
     --hud2:#FFFFFF;
     --line:#dfeae7;
     --text:#16232b;
-    --dim:#6b7c88;
+    --dim:#5a6874;
     --dim2:#46555f;
-    --accent:#0e9f8e;
+    --accent:#0b7a6e;
 
-    --lyric:#6c7d89;
-    --lyricZh:#97a6af;
+    --lyric:#55636e;
+    --lyricZh:#66737c;
     --lyricOn:#0b1a22;
     --lyricZhOn:#22303a;
     --title:#2b3a44;
-    --sub:#6b7c88;
+    --sub:#5a6874;
     --btnBg:#FFFFFF;
     --btnTxt:#24323c;
     --btnActive:#e8f1ee;
@@ -104,7 +104,7 @@
     .hud-bottom > * + *{margin-top:14px;}
     .seekwrap > * + *{margin-left:10px;}
     .transport > * + *{margin-left:22px;}
-    #sheet .body > * + *{margin-top:18px;}
+    #sheet .body > * + *{margin-top:0;}
     .row > * + *{margin-left:8px;margin-top:8px;}
     #listItems > * + *{margin-top:8px;}
     .li > * + *{margin-left:12px;}
@@ -177,7 +177,7 @@
     transition:transform .42s cubic-bezier(.22,.61,.36,1);}
   #lyricInner.jump{transition:none;}
   .line{padding:.3em .5em;font-size:var(--ly);line-height:1.3;color:var(--lyric);text-align:center;
-    border-radius:14px;transition:color .25s;cursor:pointer;}
+    border-radius:12px;transition:color .25s;cursor:pointer;}
   .line .zh{display:block;font-size:.76em;line-height:1.4;color:var(--lyricZh);margin-top:.26em;
     transition:color .25s;}
   .line.note{font-size:calc(var(--ly) * .55);color:var(--lyricZh);}
@@ -191,7 +191,7 @@
   body.lang-zh .line{line-height:1.32;}
 
   /* 暂停时屏幕正中的大播放键：半透明，点一下就播，播起来自动淡出 */
-  #playFloat{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  #playFloat{position:fixed;left:50%;bottom:26px;top:auto;transform:translateX(-50%);
     width:150px;height:150px;padding:0;border-radius:50%;z-index:26;border:none;
     background:radial-gradient(circle at 50% 50%,
       var(--floatC1) 0%, var(--floatC2) 42%, transparent 72%);
@@ -199,11 +199,12 @@
     display:flex;align-items:center;justify-content:center;
     opacity:0;pointer-events:none;transition:opacity .35s ease;}
   #playFloat.show{opacity:1;pointer-events:auto;}
+  body.has-video #playFloat{bottom:150px;}  /* MV 字幕在底部，让开 */
   #playFloat:active{color:#fff;}
-  #playFloat svg{width:58px;height:58px;fill:currentColor;margin-left:8px;}
+  #playFloat svg{width:44px;height:44px;fill:currentColor;margin-left:7px;}
   @media (max-width:640px){
-    #playFloat{width:118px;height:118px;}
-    #playFloat svg{width:40px;height:40px;margin-left:5px;}
+    #playFloat{width:92px;height:92px;}
+    #playFloat svg{width:34px;height:34px;margin-left:4px;}
   }
 
   /* ---------- 常驻歌名（含中文译名） ---------- */
@@ -219,11 +220,11 @@
   #empty{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;gap:22px;text-align:center;padding:32px;}
   #empty.hidden{display:none;}
-  #empty .name{font-size:15px;letter-spacing:.3em;color:var(--dim2);text-transform:uppercase;}
+  #empty .name{font-size:16px;letter-spacing:.3em;color:var(--dim2);text-transform:uppercase;}
   #empty .ver{font-size:12px;color:var(--dim);letter-spacing:.04em;margin-top:-12px;}
-  #empty .tip{font-size:15px;color:var(--dim);margin:0;max-width:520px;line-height:1.7;}
-  .btn{height:58px;padding:0 30px;border-radius:14px;border:1px solid var(--line);
-    background:var(--hud2);color:var(--text);font-size:17px;font-weight:500;cursor:pointer;
+  #empty .tip{font-size:16px;color:var(--dim);margin:0;max-width:520px;line-height:1.7;}
+  .btn{height:58px;padding:0 30px;border-radius:12px;border:1px solid var(--line);
+    background:var(--hud2);color:var(--text);font-size:16px;font-weight:500;cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;}
   .btn:active{background:var(--btnActive);}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:600;}
@@ -238,7 +239,7 @@
   .hud-top{position:absolute;top:0;right:0;display:flex;align-items:center;padding:14px 18px;
     transition:transform .35s ease;}
   /* 设置：与歌单同排，更小更淡，不与播放键争视线 */
-  #btnMore{width:40px;height:40px;border-radius:20px;border:1px solid transparent;
+  #btnMore{width:40px;height:40px;border-radius:18px;border:1px solid transparent;
     background:transparent;color:var(--btnTxt);opacity:.5;cursor:pointer;flex:0 0 auto;
     display:flex;align-items:center;justify-content:center;margin-left:6px;}
   #btnMore svg{width:20px;height:20px;fill:currentColor;}
@@ -280,23 +281,23 @@
   /* 歌单 + 设置：固定在右下角，与播放键同行但不参与居中 */
   .tr-tools{position:absolute;right:20px;bottom:46px;
     display:flex;align-items:center;gap:10px;pointer-events:auto;}
-  .ibtn.nav.list{width:auto;height:42px;padding:0 15px;border-radius:21px;
+  .ibtn.nav.list{width:auto;height:42px;padding:0 15px;border-radius:999px;
     border:1px solid var(--line);background:var(--btnBg);color:var(--btnTxt);
     display:flex;align-items:center;gap:7px;opacity:.92;}
   .ibtn.nav.list svg{display:none;}   /* 已经写了「歌单」两字，图标是多余的 */
-  .ibtn.nav.list .lbl{font-size:15px;line-height:1;letter-spacing:.02em;}
+  .ibtn.nav.list .lbl{font-size:16px;line-height:1;letter-spacing:.02em;}
   .ibtn.nav.list:active,.ibtn.nav.list.press{background:var(--btnActive);opacity:1;}
 
   /* ---------- 抽屉：所有次要功能 ---------- */
   #sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--hud);
-    border-top:1px solid var(--line);border-radius:20px 20px 0 0;
+    border-top:1px solid var(--line);border-radius:18px 18px 0 0;
     transform:translateY(102%);transition:transform .3s cubic-bezier(.22,.61,.36,1);
-    max-height:76%;display:flex;flex-direction:column;padding:8px 20px 24px;}
+    max-height:92%;display:flex;flex-direction:column;padding:8px 20px 20px;}
   #sheet.open{transform:translateY(0);}
   #sheet .grab{width:44px;height:4px;border-radius:2px;background:var(--grab);margin:6px auto 14px;flex:0 0 auto;}
-  #sheet .body{overflow-y:auto;display:flex;flex-direction:column;gap:18px;padding-bottom:6px;}
+  #sheet .body{overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:6px;}
   .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
-  .row .lbl{font-size:13px;color:var(--dim);width:44px;flex:0 0 auto;}
+  .row .lbl{font-size:14px;color:var(--dim);width:44px;flex:0 0 auto;}
   .chip{height:48px;min-width:60px;padding:0 18px;border-radius:12px;border:1px solid var(--line);
     background:var(--hud2);color:var(--dim2);font-size:16px;cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -304,16 +305,16 @@
   .chip.on{background:rgba(56,217,190,.16);border-color:var(--accent);color:var(--accent);}
   .chip:active{background:#242b35;}
   .chip:disabled{opacity:.35;}
-  #abInfo{font-size:13px;color:var(--dim);}
+  #abInfo{font-size:14px;color:var(--dim);}
 
   /* ---------- 歌单 / 说明 ---------- */
   /* 歌单/说明做成右侧面板，不再盖住整个屏幕，左边歌词照样能看 */
   #overlay{position:fixed;top:0;right:0;bottom:0;z-index:60;
     width:var(--panelW);background:var(--hud);border-left:1px solid var(--line);
-    box-shadow:-24px 0 48px rgba(0,0,0,.42);border-radius:18px 0 0 18px;
+    border-radius:18px 0 0 18px;
     display:flex;flex-direction:column;padding:20px;
     transform:translateX(103%);transition:transform .28s cubic-bezier(.22,.61,.36,1);}
-  #overlay.open{transform:translateX(0);}
+  #overlay.open{transform:translateX(0);box-shadow:-24px 0 48px rgba(0,0,0,.42);}
   #overlay.help{width:min(560px,52vw);}
   /* 面板打开时歌词整块让位到剩余区域的中间 */
   @media (min-width:701px){
@@ -325,10 +326,10 @@
   }
   #overlay .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;}
   #overlay:not(.help) .head{display:none;}   /* 歌单不用标题栏：点面板外即可关闭 */
-  #overlay h3{margin:0;font-size:18px;font-weight:600;}
+  #overlay h3{margin:0;font-size:20px;font-weight:600;}
   #listItems{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
     display:flex;flex-direction:column;gap:0;}
-  #listItems .grp{font-size:13px;color:var(--dim);letter-spacing:.02em;
+  #listItems .grp{font-size:14px;color:var(--dim);letter-spacing:.02em;
     padding:11px 16px 9px;background:rgba(127,140,158,.06);
     border-bottom:1px solid rgba(127,140,158,.10);}
   #listItems .grp.on{color:var(--accent);font-weight:600;}
@@ -342,7 +343,7 @@
     background:transparent;border:none;font-size:16px;line-height:1.3;cursor:pointer;}
   .li + .li{border-top:1px solid rgba(127,140,158,.10);}
   .li.on{background:rgba(56,217,190,.13);}
-  .li .no{color:var(--dim);font-size:13px;min-width:24px;font-variant-numeric:tabular-nums;}
+  .li .no{color:var(--dim);font-size:14px;min-width:24px;font-variant-numeric:tabular-nums;}
   .li .nmwrap{flex:1;min-width:0;}
   .li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .li .nmzh{font-size:12px;color:#5c6675;margin-top:2px;
@@ -350,7 +351,7 @@
   .li .nmzh:empty{display:none;}   /* 没有译名时不占位 */
   .li .del{flex:0 0 auto;width:34px;height:34px;padding:0;border:none;border-radius:8px;
     background:transparent;color:var(--dim);opacity:.55;
-    font-size:17px;line-height:1;cursor:pointer;
+    font-size:16px;line-height:1;cursor:pointer;
     display:flex;align-items:center;justify-content:center;}
   .li .del:active{background:rgba(224,113,113,.16);color:#e07171;opacity:1;}
   .li .tag{font-size:12px;color:#c99a4b;}
@@ -358,9 +359,9 @@
   #help{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
     padding-bottom:20px;}
   #help .box{max-width:640px;margin:0 auto;}
-  #help p,#help li{color:#a8b3c2;font-size:15px;line-height:1.8;}
+  #help p,#help li{color:#a8b3c2;font-size:16px;line-height:1.8;}
   #help ol{padding-left:20px;margin:6px 0 14px;}
-  #help code{background:#141a21;padding:2px 6px;border-radius:4px;color:#e0b34d;font-size:13px;}
+  #help code{background:#141a21;padding:2px 6px;border-radius:8px;color:#e0b34d;font-size:14px;}
 
   /* APK 模式下由原生读目录，不需要浏览器缓存与「清空缓存」 */
   body.native #btnClear{display:none;}
@@ -370,11 +371,11 @@
   body:not(.native) #btnScanEmpty{display:none;}
   body:not(.native) #btnAutoScan{display:none;}
   body:not(.native) #btnFolder{display:none;}
+  body.native #btnApk{display:none;}   /* 已经在用 APK，不需要再下载 */
   body:not(.native) #btnVideo{display:none;}
   body.native #btnDemo{display:none;}
 
   /* APK 模式下这些入口没有意义 */
-  body.native #btnApk{display:none;}
   body.native #apkBox{display:none;}
 
   /* 临时提示条：只在出问题时短暂出现，10 秒自动消失，点一下可关。
@@ -382,7 +383,7 @@
   #notice{position:fixed;left:50%;bottom:186px;transform:translateX(-50%) translateY(8px);
     z-index:90;display:none;align-items:center;gap:12px;max-width:80%;
     background:rgba(28,32,39,.96);border:1px solid rgba(255,255,255,.10);
-    border-radius:14px;padding:12px 16px;font-size:14px;line-height:1.5;
+    border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.5;
     color:#e8eef6;box-shadow:0 6px 24px rgba(0,0,0,.45);
     opacity:0;transition:opacity .25s ease, transform .25s ease;}
   #notice.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0);}
@@ -405,7 +406,7 @@
     font-size:14px;line-height:1.6;display:flex;gap:12px;align-items:flex-start;}
   #deskhint b{color:#ffcf6b;font-weight:600;}
   #deskhint .txt{flex:1;}
-  #deskhint button{flex:0 0 auto;height:34px;padding:0 14px;border-radius:9px;
+  #deskhint button{flex:0 0 auto;height:34px;padding:0 14px;border-radius:8px;
     border:1px solid #4a3a1a;background:transparent;color:#ecd6a6;font-size:14px;cursor:pointer;}
   /* 手机竖屏适配：必须放在所有基础规则之后，否则会被后面的规则覆盖（之前就是这个问题） */
   @media (max-width:640px){
@@ -428,9 +429,9 @@
     .ibtn.play svg{ width:26px; height:26px; }
     .ibtn.nav{ width:40px; height:40px; }
     .ibtn.nav svg{ width:19px; height:19px; }
-    .t{ min-width:34px; font-size:11px; }
+    .t{ min-width:34px; font-size:12px; }
     #sheet{ padding:8px 16px 22px; }
-    .chip{ height:44px; padding:0 14px; font-size:15px; }
+    .chip{ height:44px; padding:0 14px; font-size:16px; }
   }
 </style>
 </head>
@@ -568,7 +569,7 @@
   <div id="listItems"></div>
   <div id="help" style="display:none;">
     <div class="box">
-      <p id="verInfo" style="color:#6f7a89;font-size:13px;margin:0 0 10px;"></p>
+      <p id="verInfo" style="color:#6f7a89;font-size:14px;margin:0 0 10px;"></p>
       <ol>
         <li>把英文歌 <code>.mp3</code> 和同名歌词 <code>.lrc</code> 放进同一个文件夹（U 盘或车机内部存储都行）。</li>
         <li>网页版点「选歌」两者一起选中；APK 第一次点「扫描」，之后每次打开直接恢复歌单，不用再扫。</li>
@@ -587,15 +588,15 @@
         <p>网页版在部分老车机上会被缩放或排版错乱，装 APK 更稳：直接读本机目录、不用每次选歌、有桌面图标。</p>
         <p style="margin-top:8px;">
           <a class="chip" href="apk/" target="_blank" rel="noopener"
-             style="height:42px;padding:0 18px;font-size:15px;color:#5fb4ff;border-color:#2b4a6b;">下载 APK（336 KB）</a>
+             style="height:42px;padding:0 18px;font-size:16px;color:#5fb4ff;border-color:#2b4a6b;">下载 APK（336 KB）</a>
         </p>
-        <p id="apkUrl" style="color:#3d4552;font-size:12px;word-break:break-all;"></p>
+        <p id="apkUrl" style="color:var(--dim);font-size:12px;word-break:break-all;"></p>
       </div>
 
-      <p id="storeInfo" style="color:#4a5462;font-size:13px;"></p>
-      <p id="scanInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
-      <p id="diagInfo" style="color:#4a5462;font-size:13px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
-      <p id="keyInfo" style="color:#3d4552;font-size:12px;"></p>
+      <p id="storeInfo" style="color:var(--dim);font-size:14px;"></p>
+      <p id="scanInfo" style="color:var(--dim);font-size:14px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
+      <p id="diagInfo" style="color:var(--dim);font-size:14px;line-height:1.6;word-break:break-all;margin-top:6px;"></p>
+      <p id="keyInfo" style="color:var(--dim);font-size:12px;"></p>
     </div>
   </div>
 </div>
@@ -614,8 +615,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.43.0';
-  var BUILD_AT = '2026-11-16 13:35';
+  var APP_VER = '1.43.1';
+  var BUILD_AT = '2026-11-16 16:55';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -635,7 +636,7 @@
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, lang: 'both', lineLoop: false, off: 0, intro: 0, autoIntro: false, autoStart: 0, pendingSkip: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, autoScan: false,
+    artistSet: {}, speed: 1, lang: 'both', lineLoop: false, off: 0, intro: 0, autoIntro: false, autoStart: 0, pendingSkip: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -742,15 +743,49 @@
 
   // 批量纠偏：标题其实是歌手名时，换回文件名里的另一半
   // 歌手词有两个来源：① 每首歌 LRC 里的 [ar:]；② 文件名「X - Y」里 Y 反复出现（≥3 次）
+  function updateDiag(){
+    var di = $('diagInfo');
+    if(!di) return;
+    var tr = (S.cur >= 0) ? S.tracks[S.cur] : null;
+    if(!tr){ di.textContent = ''; return; }
+    di.textContent = '诊断 · 文件名「' + tr.name + '」｜LRC ti「' + (tr._ti || '无') +
+      '」ar「' + (tr._ar || '无') + '」｜显示为「' + (tr.title || '') + '」｜' +
+      (tr.video ? '带MV' : '纯音频');
+  }
+
+  function stemOfTrack(t){
+    return (t.name || '').replace(/^\s*\d{1,3}[\s._\-]+/, '');
+  }
+
+  function buildArtistSet(){
+    var artistSet = {}, tailCnt = {};
+    S.tracks.forEach(function(t){
+      if(t._ar){
+        String(t._ar).split(/[\/&、,]/).forEach(function(x){
+          var k = normName(x);
+          if(k) artistSet[k] = 1;
+        });
+      }
+      var q = stemOfTrack(t).split(' - ');
+      if(q.length >= 2){
+        var last = normName(q[q.length - 1]);
+        if(last) tailCnt[last] = (tailCnt[last] || 0) + 1;
+      }
+    });
+    for(var k in tailCnt){
+      if(tailCnt[k] >= 3) artistSet[k] = 1;      // 反复出现的尾段就是歌手
+    }
+    S.artistSet = artistSet;
+    return artistSet;
+  }
+
   function normalizeTitles(){
     var n = S.tracks.length;
     if(n < 2) return;
 
-    function stemOf(t){
-      return (t.name || '').replace(/^\s*\d{1,3}[\s._\-]+/, '');
-    }
+    function stemOf(t){ return stemOfTrack(t); }
 
-    var artistSet = {}, tailCnt = {};
+    var artistSet = buildArtistSet(), tailCnt = {};
     S.tracks.forEach(function(t){
       if(t._ar){
         String(t._ar).split(/[\/&、,]/).forEach(function(x){
@@ -780,6 +815,7 @@
       }
       t.titleZh = '';
     });
+    updateDiag();
   }
 
   function applyTrackMeta(tr, lrcText){
@@ -796,6 +832,12 @@
       var left = q[0].trim(), right = q.slice(1).join(' - ').trim();
       if(ar && arMatches(right, ar)){ nmArtist = right; nmTitle = left; }        // 歌名 - 歌手
       else if(ar && arMatches(left, ar)){ nmArtist = left; nmTitle = right; }    // 歌手 - 歌名
+      else if(S.artistSet[normName(right)] && !S.artistSet[normName(left)]){
+        nmArtist = right; nmTitle = left;                                        // 右边是已知歌手
+      }
+      else if(S.artistSet[normName(left)] && !S.artistSet[normName(right)]){
+        nmArtist = left; nmTitle = right;                                        // 左边是已知歌手
+      }
       else if(left.indexOf(' ') < 0 && right.indexOf(' ') > 0){
         nmArtist = right; nmTitle = left;                                          // 右侧像多人名，左侧是歌名
       }
@@ -1593,12 +1635,7 @@
     setSpeed(S.speed);
     save({ lastTrack: tr.name });
 
-    var di = $('diagInfo');
-    if(di){
-      di.textContent = '诊断 · 文件名「' + tr.name + '」｜LRC ti「' + (tr._ti || '无') +
-        '」ar「' + (tr._ar || '无') + '」｜显示为「' + (tr.title || '') + '」｜' +
-        (tr.video ? '带MV' : '纯音频');
-    }
+    updateDiag();
 
     if(opts.autoplay !== false) safePlay();
     showHud();
@@ -1933,7 +1970,8 @@
     var f = $('playFloat');
     if(!f) return;
     var has = (S.cur >= 0) && S.tracks[S.cur];
-    f.className = (has && audio.paused) ? 'show' : '';
+    // 控制条在的时候它自己就有播放键，这里不再重复出现
+    f.className = (has && audio.paused && document.body.classList.contains('hud-off')) ? 'show' : '';
   }
 
   /* ---------- 歌词同步偏移（每首歌单独记） ---------- */
@@ -2167,7 +2205,7 @@
     if(els.hud.classList.contains('hide')){
       els.hud.classList.remove('hide'); wokeAt = now;
       document.body.classList.remove('hud-off');
-      layout();
+      layout(); syncFloat();
     }
     if(now - lastWake >= 250 || idleTimer === 0){ lastWake = now; armIdle(); }
   }
@@ -2178,7 +2216,7 @@
     }
     els.hud.classList.add('hide');
     document.body.classList.add('hud-off');
-    layout();
+    layout(); syncFloat();
   }
   function justWoke(){ return Date.now() - wokeAt < 500; }
 
