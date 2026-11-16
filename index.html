@@ -177,7 +177,7 @@
     transition:transform .42s cubic-bezier(.22,.61,.36,1);}
   #lyricInner.jump{transition:none;}
   .line{padding:.3em .5em;font-size:var(--ly);line-height:1.3;color:var(--lyric);text-align:center;
-    border-radius:12px;transition:color .25s;cursor:pointer;}
+    border-radius:12px;transition:color .25s, opacity .26s ease;cursor:pointer;}
   .line .zh{display:block;font-size:.76em;line-height:1.4;color:var(--lyricZh);margin-top:.26em;
     transition:color .25s;}
   .line.note{font-size:calc(var(--ly) * .55);color:var(--lyricZh);}
@@ -617,8 +617,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.43.2';
-  var BUILD_AT = '2026-11-17 07:20';
+  var APP_VER = '1.43.3';
+  var BUILD_AT = '2026-11-17 07:45';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1866,18 +1866,28 @@
     setTimeout(function(){ fitLines(); relayout(); }, 900);
   }
 
-  function layout(){
-    // 播 MV 时字幕固定贴底，不做居中位移
-    if(document.body.classList.contains('has-video')){ els.inner.style.transform = ''; return; }
+  // 可视安全区的中心（要让位给顶部歌名条与底部控制条）
+  function viewGeom(){
     var vh = els.view.clientHeight;
-    var topSafe = 76, botSafe = 156;                 // 顶部歌名条 / 底部控制条的占用
+    var topSafe = 76, botSafe = 156;
     var tb = $('titlebar');
     if(tb){
       var th = tb.offsetHeight;
-      if(th > 0) topSafe = Math.max(topSafe, th + 14);   // 按歌名实际高度让位，绝不重叠
+      if(th > 0) topSafe = Math.max(topSafe, th + 14);
     }
-    var areaH = Math.max(80, vh - topSafe - botSafe);
-    var areaCenter = topSafe + areaH / 2;
+    return { vh: vh, center: topSafe + Math.max(80, vh - topSafe - botSafe) / 2 };
+  }
+
+  // 让某一行的中心落在安全区中心，需要的 translateY
+  function shiftFor(node){
+    var g = viewGeom();
+    return (g.center - g.vh/2) - (node.offsetTop + node.offsetHeight/2);
+  }
+
+  function layout(){
+    // 播 MV 时字幕固定贴底，不做居中位移
+    if(document.body.classList.contains('has-video')){ els.inner.style.transform = ''; return; }
+    var g = viewGeom();
     var active = els.inner.querySelector('.line.active');
 
     if(!active){
@@ -1885,12 +1895,10 @@
       // 这样一按播放不会整块往下跳（之前的跳变就是顶对齐 → 居中切换造成的）
       var first = els.inner.firstElementChild;
       var fh = first ? first.offsetHeight : 0;
-      els.inner.style.transform = 'translateY(' + (areaCenter - vh/2 - fh/2) + 'px)';
+      els.inner.style.transform = 'translateY(' + (g.center - g.vh/2 - fh/2) + 'px)';
       return;
     }
-    var shift = areaCenter - vh/2;
-    els.inner.style.transform = 'translateY(' +
-      (shift - (active.offsetTop + active.offsetHeight/2)) + 'px)';
+    els.inner.style.transform = 'translateY(' + shiftFor(active) + 'px)';
   }
 
   // 歌词窗口：普通播放只留「上一句 / 当前句 / 下一句」三行，
@@ -1911,14 +1919,69 @@
     }
   }
 
+  var scrollT = 0;
+
+  // 瞬间定位：不开过渡直接落到目标位置（开播前定位、或一次跳过好几句时用）
+  function snapLayout(){
+    var all = els.inner.children;
+    for(var q = 0; q < all.length; q++) all[q].style.opacity = '';
+    els.inner.style.transition = 'none';
+    applyLineWindow();
+    layout();
+    void els.inner.offsetHeight;      // 强制重排，确保 none 已生效
+    setTimeout(function(){ els.inner.style.transition = ''; }, 80);
+  }
+
   function setActive(i){
     if(i === S.lineIdx) return;
     var nodes = els.inner.children;
-    if(S.lineIdx >= 0 && nodes[S.lineIdx]) nodes[S.lineIdx].classList.remove('active');
+    var prev = S.lineIdx;
+    if(prev >= 0 && nodes[prev]) nodes[prev].classList.remove('active');
     S.lineIdx = i;
-    if(i >= 0 && nodes[i]) nodes[i].classList.add('active');
-    applyLineWindow();   // 必须先收窗口：隐藏行不占位，量出来的 offsetTop 才是对的
-    layout();
+    if(i < 0 || !nodes[i]){ applyLineWindow(); layout(); return; }
+    nodes[i].classList.add('active');
+
+    // 开头第一句、或一次跳过好几句：直接到位，别拖着滑
+    if(prev < 0 || Math.abs(i - prev) > 1){ snapLayout(); return; }
+
+    // MV 字幕贴底、关掉三行模式：保持原样（整块滚动，不需要收窗口）
+    var mv = document.body.classList.contains('has-video');
+    if(mv || !S.lineWin){
+      var all2 = els.inner.children;
+      for(var q2 = 0; q2 < all2.length; q2++) all2[q2].style.opacity = '';
+      applyLineWindow(); layout(); return;
+    }
+
+    /* 滚动换句：
+       ① 先把「旧窗口 + 新窗口」的行都摆出来（会多出上下一句）
+       ② 整块往上（或往下）滑一行，滑到新当前句居中
+       ③ 滑完再收成三行：去掉多余那一行，同时把位移补回去（关掉过渡，视觉不动）
+       这样眼睛看到的是「歌词往上滚一行」，不是「内容突然被换掉」。   */
+    var lo = Math.min(prev, i) - 1, hi = Math.max(prev, i) + 1;
+    var leaving = (i > prev) ? prev - 1 : prev + 1;      // 即将滑出画面的那一句
+    for(var k = 0; k < nodes.length; k++){
+      nodes[k].classList.toggle('far', k < lo || k > hi);
+      nodes[k].style.opacity = (k === leaving) ? '0' : '';   // 出去的那句淡出，别从歌名条上飘过
+    }
+
+    els.inner.classList.remove('jump');
+    els.inner.style.transition = '';    // 上一次收尾可能关过过渡，这里必须恢复，否则本次会瞬移
+    els.inner.style.transform = 'translateY(' + shiftFor(nodes[i]) + 'px)';
+
+    clearTimeout(scrollT);
+    scrollT = setTimeout(function(){
+      if(S.lineIdx !== i) return;      // 期间又切了句，交给新的那一次收尾
+      // 收尾这一下必须「零过渡」：先真正关掉过渡（并强制重排确认生效），
+      // 再去掉多余的一行、把位移补回去 —— 两者同帧发生，眼睛看不出变化。
+      els.inner.style.transition = 'none';
+      applyLineWindow();
+      layout();
+      void els.inner.offsetHeight;     // 强制重排，确保上面的 none 已经生效
+      for(var q = 0; q < nodes.length; q++) nodes[q].style.opacity = '';
+      setTimeout(function(){
+        if(S.lineIdx === i) els.inner.style.transition = '';
+      }, 80);
+    }, 450);
   }
 
   // 歌词偏移（秒）：正数表示歌词整体往后推（解决"歌词比声音早"）
