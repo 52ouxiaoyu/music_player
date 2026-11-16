@@ -25,7 +25,7 @@
     --dim:#8c9cae;
     --dim2:#b9c7d4;
     --accent:#38d9be;
-    --ly:30px;
+    --ly:32px;
 
     /* 主题相关 */
     --lyric:#94a7b9;
@@ -92,10 +92,10 @@
   html.light .ibtn{box-shadow:0 1px 2px rgba(17,21,26,.07);}
   html.light .btn,html.light .chip{box-shadow:0 1px 2px rgba(17,21,26,.05);}
   html.light #playFloat{box-shadow:none;}
-  @media (min-width:700px){ :root{ --ly:40px; } }
-  @media (min-width:1000px){ :root{ --ly:48px; } }
-  @media (min-width:1400px){ :root{ --ly:56px; } }
-  @media (min-width:1800px){ :root{ --ly:64px; } }
+  @media (min-width:700px){ :root{ --ly:45px; } }
+  @media (min-width:1000px){ :root{ --ly:54px; } }
+  @media (min-width:1400px){ :root{ --ly:62px; } }
+  @media (min-width:1800px){ :root{ --ly:72px; } }
 
   /* 手机竖屏：不追「一行放下」，字号优先，长句折行 */
 
@@ -176,9 +176,10 @@
   #lyricInner{position:absolute;left:0;right:0;top:50%;padding:0 44px;
     transition:transform .42s cubic-bezier(.22,.61,.36,1);}
   #lyricInner.jump{transition:none;}
-  .line{padding:.3em .5em;font-size:var(--ly);line-height:1.3;color:var(--lyric);text-align:center;
+  .line{padding:.22em .5em;font-size:var(--ly);line-height:1.3;color:var(--lyric);text-align:center;
     border-radius:12px;transition:color .25s, opacity .26s ease;cursor:pointer;}
-  .line .zh{display:block;font-size:.76em;line-height:1.4;color:var(--lyricZh);margin-top:.26em;
+  .line .seg{display:block;}
+  .line .zh{display:block;font-size:.76em;line-height:1.36;color:var(--lyricZh);margin-top:.2em;
     transition:color .25s;}
   .line.note{font-size:calc(var(--ly) * .55);color:var(--lyricZh);}
   .line.active{color:var(--lyricOn);font-weight:600;letter-spacing:.005em;}
@@ -411,7 +412,7 @@
     border:1px solid #4a3a1a;background:transparent;color:#ecd6a6;font-size:14px;cursor:pointer;}
   /* 手机竖屏适配：必须放在所有基础规则之后，否则会被后面的规则覆盖（之前就是这个问题） */
   @media (max-width:640px){
-    :root{ --ly:34px; }
+    :root{ --ly:36px; }
     #lyricInner{ padding:0 20px; }
     #lyricView{ padding:0 0 130px; }
     .line{ padding:.3em .25em; line-height:1.32; }
@@ -617,8 +618,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.43.3';
-  var BUILD_AT = '2026-11-17 07:45';
+  var APP_VER = '1.43.4';
+  var BUILD_AT = '2026-11-17 08:05';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1747,14 +1748,74 @@
   }
 
 
-  /* 全曲统一字号：先量每行在基准字号下需要多宽，取「能覆盖 97% 行」的比例，
-     整首歌统一套用。极少数超长句宁可折成两行，也不让每句大小不一。 */
+  /* ---------- 折行对齐 + 字号 ----------
+     目标：字尽量大，但三行（含折行）必须都在屏幕内；
+           要折行的句子从中间断开，两行宽度尽量均等，别出现"第二行只剩一两个字"。
+     ① 量每行在基准字号下需要的宽度 → 中位数定出宽度允许的字号
+     ② 用纯算术估出三行窗口的高度，超预算就收字号（不触发重排）
+     ③ 按最终字号决定哪些句子要折、从哪断 */
+  var _mc = null;
+  function tW(text, font){
+    try{
+      if(!_mc) _mc = document.createElement('canvas').getContext('2d');
+      _mc.font = font;
+      return _mc.measureText(text).width;
+    }catch(e){ return text.length * 10; }     // 兜底：粗估
+  }
+
+  function rawOf(sp){
+    var r = sp.getAttribute('data-raw');
+    if(r === null){ r = sp.textContent || ''; sp.setAttribute('data-raw', r); }
+    return r;
+  }
+
+  // 找让左右两段宽度最接近的断点（英文按空格断，中文优先按标点断）
+  function bestSplit(text, font, isZh){
+    var n = text.length;
+    if(n < 8) return -1;
+    var total = tW(text, font);
+    if(!(total > 0)) return -1;
+    var best = -1, bestDiff = 1e9;
+
+    function tryPoint(p){
+      var a = text.slice(0, p), b = text.slice(p);
+      if(!a.replace(/\s/g, '') || !b.replace(/\s/g, '')) return;
+      var w1 = tW(a, font);
+      if(w1 < total * 0.28) return;                  // 断得太靠前的不要
+      var d = Math.abs(w1 - (total - w1));
+      if(d < bestDiff){ bestDiff = d; best = p; }
+    }
+
+    var i;
+    if(isZh){
+      for(i = 1; i < n - 1; i++){
+        if('，。、；：！？,.;:!?'.indexOf(text.charAt(i - 1)) >= 0) tryPoint(i);
+      }
+      if(best < 0){
+        for(i = Math.floor(n / 3); i <= Math.ceil(n * 2 / 3); i++) tryPoint(i);
+      }
+    }else{
+      for(i = 1; i < n - 1; i++){ if(text.charAt(i) === ' ') tryPoint(i); }
+    }
+    return best;
+  }
+
+  function renderRows(sp, rows){
+    if(rows.length < 2){ sp.textContent = rows[0] || ''; return; }
+    sp.innerHTML = '';
+    for(var i = 0; i < rows.length; i++){
+      var seg = document.createElement('span');
+      seg.className = 'seg';
+      seg.textContent = rows[i];
+      sp.appendChild(seg);
+    }
+  }
+
   function fitLinesRaw(){
     var kids = els.inner.children, n = kids.length;
     if(!n) return;
 
     // 批量测量：先统一写入，再统一读取，避免每行各触发一次重排
-    // （老车机上 80 行逐行测会卡 100ms 以上）
     var list = [], i, el;
     for(i=0;i<n;i++){
       el = kids[i];
@@ -1763,9 +1824,16 @@
     }
     if(!list.length) return;
 
+    // 上一轮可能已经折过行，先还原成整句再量
     for(i=0;i<list.length;i++){
       list[i].style.fontSize = '';
       list[i].style.fontWeight = '600';        // 按当前句加粗后的宽度量
+      var sps0 = list[i].getElementsByTagName('span');
+      for(var q0 = 0; q0 < sps0.length; q0++){
+        if(sps0[q0].className === 'en' || sps0[q0].className === 'zh'){
+          sps0[q0].textContent = rawOf(sps0[q0]);
+        }
+      }
     }
 
     var avail = [], baseFs = 0;
@@ -1802,46 +1870,96 @@
     if(!ratios.length) return;
 
     ratios.sort(function(a,b){ return a-b; });
-    // 取中位数：一半的行一行放下，偏长的句子折行换字号（宁可折行也要大字）
-    // （屏幕够大，宁可偶尔换行，也要把字放大到看得清）
+    // 中位数：一半的行一行放下，偏长的句子折行
     var s = ratios[Math.floor((ratios.length-1) * 0.5)];
-    s = Math.min(1, Math.max(0.55, s));
+    s = Math.min(1, Math.max(0.72, s));
 
-    // 字号有下限：宁可折行也不把字压到看不清
     var size = Math.max(24, Math.floor(baseFs * s));
 
     // MV 字幕贴在画面上，不跟着歌词一起放大，否则又会挡掉半个画面
-    if(document.body.classList.contains('has-video')){
-      size = Math.max(22, Math.round(size * 0.8));
-    }
+    var isMv = document.body.classList.contains('has-video');
+    if(isMv) size = Math.max(22, Math.round(size * 0.8));
 
-    for(i=0;i<list.length;i++){
-      list[i].style.fontSize = size + 'px';
-    }
+    // 高度预算：三行（含折行）加起来必须放得下
+    var vh = els.view.clientHeight;
+    var tbar = $('titlebar');
+    var topSafe = Math.max(76, (tbar ? tbar.offsetHeight : 0) + 14);
+    var botSafe = isMv ? 24 : 106;
+    var budget = Math.max(120, vh - topSafe - botSafe);
 
-    // 三行窗口的兜底：整块（含折行）超出可视区时再收一档，保证三句都在屏幕内
-    try{
-      // 此刻所有行都被临时放开了，所以按「将要显示的那几行」求和，而不是按当前可见行
-      var cands = els.inner.children;
-      var mvNow = document.body.classList.contains('has-video');
-      var c0 = (S.lineIdx >= 0) ? S.lineIdx : 0;
-      var want = mvNow ? [c0, c0 + 1] : [c0 - 1, c0, c0 + 1];
-      var visH = 0;
-      for(i = 0; i < want.length; i++){
-        var node = cands[want[i]];
-        if(node) visH += node.offsetHeight;
+    // 双语模式下中文另占一行；只显一种语言时按一行算
+    var dual = !document.body.classList.contains('lang-zh') &&
+               !document.body.classList.contains('lang-en');
+
+    function rowsAt(idx, sz){
+      var w = need[idx] * (sz / baseFs);
+      var a = avail[idx] || 1;
+      return Math.max(1, Math.min(2, Math.ceil(w / a)));
+    }
+    function lineH(sz, rows){
+      var h = sz * 1.3 * rows;
+      if(dual) h += sz * 0.76 * 1.36 + sz * 0.2;     // 中文另占一行
+      return h + sz * 0.44;                          // 上下 padding
+    }
+    function windowH(sz){
+      var cnt = isMv ? 2 : 3, mx = 0, stk, ks, sum;
+      if(list.length <= cnt){
+        sum = 0;
+        for(ks = 0; ks < list.length; ks++) sum += lineH(sz, rowsAt(ks, sz));
+        return sum;
       }
-      var vh2 = els.view.clientHeight;
-      var tb2 = $('titlebar');
-      var topSafe2 = Math.max(76, (tb2 ? tb2.offsetHeight : 0) + 14);
-      var botSafe2 = document.body.classList.contains('has-video') ? 24 : 156;
-      var avail = vh2 - topSafe2 - botSafe2;
-      if(visH > avail && visH > 0){
-        var k = Math.max(0.72, avail / visH);
-        var ns = Math.max(22, Math.floor(size * k));
-        if(ns < size){
-          for(i = 0; i < list.length; i++) list[i].style.fontSize = ns + 'px';
+      for(stk = 0; stk + cnt <= list.length; stk++){
+        sum = 0;
+        for(ks = 0; ks < cnt; ks++) sum += lineH(sz, rowsAt(stk + ks, sz));
+        if(sum > mx) mx = sum;
+      }
+      return mx;
+    }
+
+    // 太高就收，收到预算内为止（纯算术，不触发重排）
+    for(var gd = 0; gd < 6; gd++){
+      if(windowH(size) <= budget || size <= 24) break;
+      size = Math.max(24, Math.floor(size * 0.94));
+    }
+
+    for(i=0;i<list.length;i++) list[i].style.fontSize = size + 'px';
+
+    // 折行对齐：这一句一行放不下，就从中间断开
+    var fam = '';
+    try{ fam = window.getComputedStyle(list[0]).fontFamily || ''; }catch(e){}
+    var langZh = document.body.classList.contains('lang-zh');
+    for(i=0;i<list.length;i++){
+      var sps = list[i].getElementsByTagName('span');
+      for(var q = 0; q < sps.length; q++){
+        var sp = sps[q];
+        var cls = sp.className;
+        if(cls !== 'en' && cls !== 'zh') continue;
+        var raw = rawOf(sp);
+        var isZh = (cls === 'zh');
+        var fs = (isZh && !langZh) ? size * 0.76 : size;
+        var font = '600 ' + fs.toFixed(1) + 'px ' + fam;
+        var a2 = avail[i] || 0;
+        if(!a2) continue;
+        if(tW(raw, font) > a2){
+          var p = bestSplit(raw, font, isZh);
+          if(p > 0) renderRows(sp, [raw.slice(0, p).trim(), raw.slice(p).trim()]);
+          else sp.textContent = raw;
+        }else{
+          sp.textContent = raw;
         }
+      }
+    }
+
+    // 真量一次当前窗口：估算偏小（中文也折行）时再收一档
+    try{
+      var c0 = (S.lineIdx >= 0) ? S.lineIdx : 0;
+      var cnt2 = isMv ? 2 : 3;
+      var first = Math.max(0, c0 - 1), last = Math.min(list.length - 1, c0 + 1);
+      var realH = 0;
+      for(i = first; i <= last && i - first < cnt2; i++) realH += list[i].offsetHeight;
+      if(realH > budget * 1.02 && size > 24){
+        var ns = Math.max(24, Math.floor(size * Math.max(0.8, budget / realH)));
+        for(i = 0; i < list.length; i++) list[i].style.fontSize = ns + 'px';
       }
     }catch(e){}
   }
