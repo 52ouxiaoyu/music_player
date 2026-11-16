@@ -523,6 +523,14 @@
       <span id="offInfo">已对齐</span>
     </div>
     <div class="row">
+      <span class="lbl">前奏</span>
+      <button class="chip" id="btnIntroSet">起点设在此处</button>
+      <button class="chip" id="btnIntroMinus">-1 秒</button>
+      <button class="chip" id="btnIntroPlus">+1 秒</button>
+      <button class="chip" id="btnIntroClear">清除</button>
+      <span id="introInfo">从头播</span>
+    </div>
+    <div class="row">
       <span class="lbl">操作</span>
       <button class="chip" id="btnPick">选歌</button>
       <button class="chip" id="btnRescan">重新扫描</button>
@@ -588,8 +596,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.41.5';
-  var BUILD_AT = '2026-11-14 08:25';
+  var APP_VER = '1.41.6';
+  var BUILD_AT = '2026-11-16 10:15';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -609,7 +617,7 @@
 
   var S = {
     tracks: [], cur: -1, lines: [], lineIdx: -1,
-    speed: 1, lang: 'both', lineLoop: false, off: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, autoScan: false,
+    speed: 1, lang: 'both', lineLoop: false, off: 0, intro: 0, pendingSkip: 0, shuffle: false, folderMode: false, theme: 'dark', showVideo: true, autoScan: false,
     ab: { a:null, b:null },
     dragging: false, raf: 0, ovMode: ''
   };
@@ -1514,7 +1522,10 @@
       }catch(e){}
     }
     S.off = Number(load()['off.' + tr.name]) || 0;
+    S.intro = Number(load()['intro.' + tr.name]) || 0;
+    S.pendingSkip = S.intro;
     updateOffInfo();
+    updateIntroInfo();
     // 有同名 MV 才用 video 元素；纯音频一律走 audio 元素（兼容性最好）
     var useVid = !!tr.video;
     var el = useVid ? vidB : audA;
@@ -1533,7 +1544,8 @@
       vidB.preload = 'auto';
       var paintFirst = function(){
         try{
-          if(vidB.readyState >= 1 && vidB.currentTime < 0.05) vidB.currentTime = 0.08;
+          var at = (S.intro > 0) ? S.intro : 0.08;
+          if(vidB.readyState >= 1 && vidB.currentTime < 0.05) vidB.currentTime = at;
         }catch(e){}
       };
       vidB.addEventListener('loadeddata', function once(){
@@ -1930,6 +1942,26 @@
     }
   }
 
+  /* ---------- 跳过前奏（每首歌单独记起播点） ---------- */
+  function updateIntroInfo(){
+    var el = $('introInfo');
+    if(!el) return;
+    var v = S.intro || 0;
+    el.textContent = v > 0 ? ('从 ' + fmt(v) + ' 起播') : '从头播';
+    el.style.color = v > 0 ? 'var(--accent)' : '';
+  }
+
+  function setIntro(v, quiet){
+    v = Math.max(0, Math.min(900, Math.round(v * 10) / 10));
+    S.intro = v;
+    var nm = curTrackName();
+    if(nm){ var o = {}; o['intro.' + nm] = v; save(o); }
+    updateIntroInfo();
+    if(!quiet && nm){
+      toast(v > 0 ? ('这首歌从 ' + fmt(v) + ' 开始播') : '已取消跳过前奏');
+    }
+  }
+
   function setBtnLabel(el, text){
     el.setAttribute('aria-label', text);
     el.setAttribute('title', text);
@@ -2180,6 +2212,15 @@
   }
 
   onMedia('play', syncPlayUI);
+
+  // 起播时跳过前奏：只在每次开播的头一下生效，用户手动拖进度不会被拽回来
+  onMedia('playing', function(){
+    if(S.pendingSkip > 0){
+      var to = S.pendingSkip;
+      S.pendingSkip = 0;
+      if(audio.currentTime + 0.4 < to){ try{ audio.currentTime = to; }catch(e){} }
+    }
+  });
   onMedia('pause', function(){
     syncPlayUI();
     savePos();
@@ -2281,6 +2322,11 @@
     applyVideoWindow();
     toast(S.showVideo ? '有同名 MV 就显示画面' : '只显示歌词');
   });
+
+  $('btnIntroSet').addEventListener('click', function(){ setIntro(audio.currentTime); });
+  $('btnIntroMinus').addEventListener('click', function(){ setIntro((S.intro || 0) - 1); });
+  $('btnIntroPlus').addEventListener('click', function(){ setIntro((S.intro || 0) + 1); });
+  $('btnIntroClear').addEventListener('click', function(){ setIntro(0); });
 
   $('btnOffEarly').addEventListener('click', function(){ setOff((S.off || 0) + 0.5); });
   $('btnOffLate').addEventListener('click', function(){ setOff((S.off || 0) - 0.5); });
