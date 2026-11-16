@@ -142,6 +142,9 @@
     object-fit:contain;background:#000;z-index:4;pointer-events:none;
     opacity:0;}   /* 不加过渡：老 WebView 上视频层可能卡在半透明 */
   body.has-video #vidB{opacity:1;}
+  /* 沉浸：控制条隐藏时，歌名条也一起淡出，屏幕上只留歌词 */
+  #titlebar{transition:opacity .35s ease;}
+  body.hud-off #titlebar{opacity:0;}
 
   /* 播 MV 时强制浅色文字与深色控制条：日间主题下也不会出现"黑字糊在暗画面上" */
   body.has-video{
@@ -466,14 +469,8 @@
       <button class="ibtn nav" id="btnPrevTrack" aria-label="上一首" title="上一首">
         <svg viewBox="0 0 24 24"><path d="M6 6h2.2v12H6zM19 6l-9.4 6 9.4 6z"/></svg>
       </button>
-      <button class="ibtn" id="btnPrev" aria-label="上一句" title="上一句">
-        <svg viewBox="0 0 24 24"><path d="M11.4 6v12l-7-6zM20.4 6v12l-7-6z"/></svg>
-      </button>
       <button class="ibtn play" id="btnPlay" aria-label="播放" title="播放">
         <svg viewBox="0 0 24 24" id="icoPlay"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="ibtn" id="btnNext" aria-label="下一句" title="下一句">
-        <svg viewBox="0 0 24 24"><path d="M3.6 6v12l7-6zM12.6 6v12l7-6z"/></svg>
       </button>
       <button class="ibtn nav" id="btnNextTrack" aria-label="下一首" title="下一首">
         <svg viewBox="0 0 24 24"><path d="M4.6 6l9.4 6-9.4 6zM15.8 6H18v12h-2.2z"/></svg>
@@ -504,13 +501,8 @@
       <button class="chip" data-speed="1.3">1.3</button>
     </div>
     <div class="row">
-      <span class="lbl">模式</span>
-      <button class="chip" id="btnLineLoop">单句循环</button>
-      <button class="chip" id="btnAllLoop">单曲循环</button>
-      <button class="chip" id="btnShuffle">随机播放</button>
-      <button class="chip" id="btnFolder">只播本文件夹</button>
+      <span class="lbl">语言</span>
       <button class="chip on" id="btnZh">双语</button>
-      <button class="chip on" id="btnVideo">显示 MV 画面</button>
     </div>
     <div class="row">
       <span class="lbl">主题</span>
@@ -519,37 +511,52 @@
       <button class="chip" id="btnThemeAuto">自动</button>
     </div>
     <div class="row">
-      <span class="lbl">A-B</span>
-      <button class="chip" id="btnA">设 A</button>
-      <button class="chip" id="btnB">设 B</button>
-      <button class="chip" id="btnABClear">清除</button>
-      <span id="abInfo">未设置</span>
-    </div>
-    <div class="row">
-      <span class="lbl">同步</span>
-      <button class="chip" id="btnOffEarly">歌词太早</button>
-      <button class="chip" id="btnOffLate">歌词太晚</button>
-      <button class="chip" id="btnOffReset">归零</button>
-      <span id="offInfo">已对齐</span>
-    </div>
-    <div class="row">
-      <span class="lbl">前奏</span>
-      <button class="chip" id="btnIntroSet">起点设在此处</button>
-      <button class="chip" id="btnIntroMinus">-1 秒</button>
-      <button class="chip" id="btnIntroPlus">+1 秒</button>
-      <button class="chip" id="btnIntroClear">清除</button>
-      <button class="chip" id="btnIntroAuto">跟歌词自动跳</button>
-      <span id="introInfo">从头播</span>
-    </div>
-    <div class="row">
       <span class="lbl">操作</span>
       <button class="chip" id="btnPick">选歌</button>
       <button class="chip" id="btnRescan">重新扫描</button>
-      <button class="chip" id="btnFull">全屏</button>
       <button class="chip" id="btnHelp">说明</button>
-      <a class="chip" id="btnApk" href="apk/" target="_blank" rel="noopener">下载 APK</a>
-      <button class="chip" id="btnAutoScan">启动时自动扫描</button>
-      <button class="chip" id="btnClear">清空缓存</button>
+      <button class="chip" id="btnMoreToggle">更多设置</button>
+    </div>
+
+    <div id="rowsMore" style="display:none;">
+      <div class="row">
+        <span class="lbl">播放</span>
+        <button class="chip" id="btnLineLoop">单句循环</button>
+        <button class="chip" id="btnAllLoop">单曲循环</button>
+        <button class="chip" id="btnShuffle">随机播放</button>
+        <button class="chip" id="btnFolder">只播本文件夹</button>
+        <button class="chip on" id="btnVideo">显示 MV 画面</button>
+      </div>
+      <div class="row">
+        <span class="lbl">A-B</span>
+        <button class="chip" id="btnA">设 A</button>
+        <button class="chip" id="btnB">设 B</button>
+        <button class="chip" id="btnABClear">清除</button>
+        <span id="abInfo">未设置</span>
+      </div>
+      <div class="row">
+        <span class="lbl">同步</span>
+        <button class="chip" id="btnOffEarly">歌词太早</button>
+        <button class="chip" id="btnOffLate">歌词太晚</button>
+        <button class="chip" id="btnOffReset">归零</button>
+        <span id="offInfo">已对齐</span>
+      </div>
+      <div class="row">
+        <span class="lbl">前奏</span>
+        <button class="chip" id="btnIntroSet">起点设在此处</button>
+        <button class="chip" id="btnIntroMinus">-1 秒</button>
+        <button class="chip" id="btnIntroPlus">+1 秒</button>
+        <button class="chip" id="btnIntroClear">清除</button>
+        <button class="chip" id="btnIntroAuto">跟歌词自动跳</button>
+        <span id="introInfo">从头播</span>
+      </div>
+      <div class="row">
+        <span class="lbl">高级</span>
+        <button class="chip" id="btnFull">全屏</button>
+        <a class="chip" id="btnApk" href="apk/" target="_blank" rel="noopener">下载 APK</a>
+        <button class="chip" id="btnAutoScan">启动时自动扫描</button>
+        <button class="chip" id="btnClear">清空缓存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -607,8 +614,8 @@
 
   var DEMO_LRC = "[ti:Demo - Travel English]\n[00:00.00]I'd like to check in, please. My reservation is under the name Wang.\n[00:00.00]我要办理入住，预订用的是王先生的名字。\n[00:04.87]Could you tell me how to get to the train station from here?\n[00:04.87]你能告诉我从这里怎么去火车站吗？\n[00:08.52]I'm sorry, I didn't quite catch that. Could you say it again more slowly?\n[00:08.52]抱歉我没听清，你能慢一点再说一遍吗？\n[00:13.50]This coffee is a little too strong for my taste.\n[00:13.50]这咖啡对我来说有点太浓了。\n[00:16.90]We're running out of time, so let's get straight to the point.\n[00:16.90]我们时间不多了，直接说重点吧。\n[00:20.92]Learning a language is a marathon, not a sprint.\n[00:20.92]学一门语言是马拉松，不是短跑。\n";
 
-  var APP_VER = '1.42.0';
-  var BUILD_AT = '2026-11-16 11:20';
+  var APP_VER = '1.43.0';
+  var BUILD_AT = '2026-11-16 13:35';
 
   // APK 里会注入这个桥；纯网页环境为 null，两套模式共用同一份代码
   var NATIVE = (typeof window !== 'undefined' && window.YDMusic) ? window.YDMusic : null;
@@ -1664,14 +1671,14 @@
       d.className = 'line note';
       d.textContent = '这首歌没有歌词文件';
       els.inner.appendChild(d);
-      setBtnLabel(els.btnPrev, '退 10 秒');
-      setBtnLabel(els.btnNext, '进 10 秒');
+      if(els.btnPrev) setBtnLabel(els.btnPrev, '退 10 秒');
+      if(els.btnNext) setBtnLabel(els.btnNext, '进 10 秒');
       els.btnLineLoop.disabled = true;
       finishBind();
       return;
     }
-    setBtnLabel(els.btnPrev, '上一句');
-    setBtnLabel(els.btnNext, '下一句');
+    if(els.btnPrev) setBtnLabel(els.btnPrev, '上一句');
+    if(els.btnNext) setBtnLabel(els.btnNext, '下一句');
     els.btnLineLoop.disabled = false;
 
     S.lines.forEach(function(ln, i){
@@ -1877,6 +1884,7 @@
 
   // lineIdx 为 null 表示点在空白处：只参与双击判定，不跳句
   function handleTap(e, lineIdx){
+    if(swipe.guard && Date.now() - swipe.guard < 400){ swipe.guard = 0; return; }
     if(isUiTarget(e.target)) return;
 
     var pt = (e.changedTouches && e.changedTouches[0]) || e;
@@ -2206,10 +2214,32 @@
     armIdle();
   }
 
+  /* ---------- 手势：歌词区左右滑，切上一句 / 下一句 ---------- */
+  var swipe = { x: 0, y: 0, t: 0, guard: 0 };
+
+  els.view.addEventListener('touchstart', function(e){
+    if(e.touches.length !== 1) return;
+    swipe.x = e.touches[0].clientX;
+    swipe.y = e.touches[0].clientY;
+    swipe.t = Date.now();
+  }, false);
+
+  els.view.addEventListener('touchend', function(e){
+    var t = e.changedTouches && e.changedTouches[0];
+    if(!t || !swipe.t) return;
+    var dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+    swipe.t = 0;
+    if(Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.6){
+      swipe.guard = Date.now();          // 紧接着的 click 要吞掉，别又跳一次句
+      step(dx < 0 ? 1 : -1);
+      wake();
+    }
+  }, false);
+
   /* ---------- 事件 ---------- */
   els.btnPlay.addEventListener('click', togglePlay);
-  els.btnPrev.addEventListener('click', function(){ step(-1); });
-  els.btnNext.addEventListener('click', function(){ step(1); });
+  if(els.btnPrev) els.btnPrev.addEventListener('click', function(){ step(-1); });
+  if(els.btnNext) els.btnNext.addEventListener('click', function(){ step(1); });
   $('btnPrevTrack').addEventListener('click', function(){ stepTrack(-1); });
   $('btnNextTrack').addEventListener('click', function(){ stepTrack(1); });
 
@@ -2445,6 +2475,15 @@
     $('fileInput').value = '';
     $('fileInput').click();
   }
+  $('btnMoreToggle').addEventListener('click', function(){
+    var box = $('rowsMore');
+    var show = (box.style.display === 'none');
+    box.style.display = show ? 'block' : 'none';
+    this.textContent = show ? '收起' : '更多设置';
+    this.classList.toggle('on', show);
+    armIdle();
+  });
+
   $('btnPick').addEventListener('click', function(){ openSheet(false); pick(); });
   $('btnRescan').addEventListener('click', function(){ openSheet(false); runScan(); });
   $('btnScanEmpty').addEventListener('click', runScan);
